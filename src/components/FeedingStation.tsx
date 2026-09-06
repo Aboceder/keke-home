@@ -434,11 +434,11 @@ export function FeedingStation() {
           <Baby className="size-5" />
           母乳
         </button>
-        <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "bottle" })}>
+        <button className="btn btn-secondary btn-lg h-16 text-base" onClick={() => setModal({ type: "bottle" })}>
           <Milk className="size-5" />
           奶瓶
         </button>
-        <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
+        <button className="btn btn-accent btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
           <Droplets className="size-5" />
           排便
         </button>
