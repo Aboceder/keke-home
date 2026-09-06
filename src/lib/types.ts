@@ -46,6 +46,7 @@ export interface PhotoRecord {
 
 export interface DayStats {
   breastCount: number;
+  breastSeconds: number;
   bottleCount: number;
   feedCount: number;
   bottleMl: number;

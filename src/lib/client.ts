@@ -45,3 +45,12 @@ export function fmtClock(seconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
+
+/** 秒 → 分钟概数（统计栏）：不足 1 小时显示 "Xmin"，超过显示 "XhYmin"，不显示秒 */
+export function fmtDurationMin(seconds: number): string {
+  const totalMin = Math.round(seconds / 60);
+  if (totalMin < 60) return `${totalMin}min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m ? `${h}h${m}min` : `${h}h`;
+}

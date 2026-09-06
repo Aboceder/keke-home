@@ -56,11 +56,16 @@ export async function GET(request: NextRequest) {
   ]);
 
   const bottleMl = bottles.reduce((s, b) => s + b.amountMl, 0);
+  const breastSeconds = feedings.reduce(
+    (s, f) => s + (f.leftSeconds ?? 0) + (f.rightSeconds ?? 0),
+    0,
+  );
   const data: DayData = {
     today: nowDate(),
     date,
     stats: {
       breastCount: feedings.length,
+      breastSeconds,
       bottleCount: bottles.length,
       feedCount: feedings.length + bottles.length,
       bottleMl,

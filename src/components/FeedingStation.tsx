@@ -1,7 +1,7 @@
 "use client";
 
 import { BottleModal, ManualFeedingModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
-import { api, fmtClock, fmtDuration } from "@/lib/client";
+import { api, fmtClock, fmtDuration, fmtDurationMin } from "@/lib/client";
 import type { ActiveState, DayData, Side } from "@/lib/types";
 import {
   AlertCircle,
@@ -389,7 +389,7 @@ export function FeedingStation() {
           </div>
           <div className="flex items-baseline gap-1">
             <span className="stat-value font-digits">{data.stats.breastCount}</span>
-            <span className="text-xs opacity-60">次</span>
+            <span className="text-xs opacity-60">次 · {fmtDurationMin(data.stats.breastSeconds)}</span>
           </div>
         </div>
         <div className="rounded-box bg-base-200 px-3 py-2.5">
