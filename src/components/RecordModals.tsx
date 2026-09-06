@@ -320,7 +320,8 @@ export function StoolModal({
 /* ---------------- 母乳（手动补录 / 编辑） ---------------- */
 
 function secToMinInput(seconds: number | null): string {
-  return seconds ? String(Math.round(seconds / 60)) : "";
+  if (!seconds) return "";
+  return String(Math.round((seconds / 60) * 100) / 100);
 }
 
 export function ManualFeedingModal({
@@ -331,8 +332,8 @@ export function ManualFeedingModal({
   const [startedAt, setStartedAt] = useState(
     initial ? initial.startedAt.replace(" ", "T") : nowInputValue(),
   );
-  const [left, setLeft] = useState(initial ? secToMinInput(initial.leftSeconds) : "");
-  const [right, setRight] = useState(initial ? secToMinInput(initial.rightSeconds) : "");
+  const [left, setLeft] = useState(initial ? secToMinInput(initial.leftSeconds ?? null) : "");
+  const [right, setRight] = useState(initial ? secToMinInput(initial.rightSeconds ?? null) : "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -376,26 +377,26 @@ export function ManualFeedingModal({
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field legend="左侧时长（min）" hint="可为空">
+          <Field legend="左侧时长（min）" hint="支持小数，可为空">
             <input
               type="number"
-              min={1}
-              step={1}
+              min={0.01}
+              step={0.01}
               className="input w-full"
               value={left}
               onChange={(e) => setLeft(e.target.value)}
-              placeholder="0"
+              placeholder="0.5"
             />
           </Field>
-          <Field legend="右侧时长（min）" hint="可为空">
+          <Field legend="右侧时长（min）" hint="支持小数，可为空">
             <input
               type="number"
-              min={1}
-              step={1}
+              min={0.01}
+              step={0.01}
               className="input w-full"
               value={right}
               onChange={(e) => setRight(e.target.value)}
-              placeholder="0"
+              placeholder="0.5"
             />
           </Field>
         </div>

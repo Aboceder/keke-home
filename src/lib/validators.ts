@@ -1,6 +1,6 @@
-import { isFutureDt, normalizeDt, parseMinutes, parseMl } from "@/lib/time";
+import { isFutureDt, normalizeDt, parseMl } from "@/lib/time";
 
-/** 母乳记录（手动补录 / 编辑）：开始时间 + 左右侧分钟（至少一侧） */
+/** 母乳记录（手动补录 / 编辑）：开始时间 + 左右侧分钟（支持小数，至少一侧） */
 export async function validateFeeding(body: {
   startedAt?: unknown;
   leftMinutes?: unknown;
@@ -10,21 +10,26 @@ export async function validateFeeding(body: {
   if (!startedAt) return { error: "开始时间格式不正确" };
   if (isFutureDt(startedAt)) return { error: "不能填写未来的时间" };
 
-  const left =
-    body.leftMinutes == null || body.leftMinutes === "" ? null : parseMinutes(body.leftMinutes);
-  const right =
-    body.rightMinutes == null || body.rightMinutes === "" ? null : parseMinutes(body.rightMinutes);
-  if (body.leftMinutes != null && body.leftMinutes !== "" && left == null)
-    return { error: "左侧时长必须为大于 0 的整数分钟" };
-  if (body.rightMinutes != null && body.rightMinutes !== "" && right == null)
-    return { error: "右侧时长必须为大于 0 的整数分钟" };
+  const isEmpty = (v: unknown) => v == null || v === "";
+  const toSeconds = (v: unknown): number | null | undefined => {
+    if (isEmpty(v)) return null;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+    return Math.round(n * 60);
+  };
+  const left = toSeconds(body.leftMinutes);
+  const right = toSeconds(body.rightMinutes);
+  if (!isEmpty(body.leftMinutes) && (left == null || left < 1))
+    return { error: "左侧时长必须为大于 0 的分钟数" };
+  if (!isEmpty(body.rightMinutes) && (right == null || right < 1))
+    return { error: "右侧时长必须为大于 0 的分钟数" };
   if (!left && !right) return { error: "左侧、右侧时长至少填写一侧" };
 
   return {
     data: {
       startedAt,
-      leftSeconds: left ? left * 60 : null,
-      rightSeconds: right ? right * 60 : null,
+      leftSeconds: left,
+      rightSeconds: right,
     },
   };
 }
