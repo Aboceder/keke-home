@@ -26,19 +26,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1b1815",
+  themeColor: "#282a36",
 };
-
-// 首屏前确定主题：手动选择优先，否则按小时自动（19:00–06:00 为夜间）
-const themeScript = `(function(){try{var t=localStorage.getItem("theme-override");if(!t){var h=new Date().getHours();t=(h>=19||h<6)?"nightlight":"daylight";}document.documentElement.setAttribute("data-theme",t);}catch(e){}})();`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" data-theme="nightlight" suppressHydrationWarning>
-      <body className="min-h-svh antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {children}
-      </body>
+    <html lang="zh-CN" data-theme="dracula">
+      <body className="min-h-svh antialiased">{children}</body>
     </html>
   );
 }

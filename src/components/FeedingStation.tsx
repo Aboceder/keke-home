@@ -13,32 +13,16 @@ import {
   ChevronRight,
   Droplets,
   Milk,
-  Moon,
   Pencil,
   Sparkles,
-  Sun,
   Trash2,
   Utensils,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Filter = "all" | "breast" | "bottle" | "stool" | "photo";
 
 const SIDE_NAME: Record<Side, string> = { left: "左侧", right: "右侧" };
-
-/** 主题跟随 <html data-theme>（由 layout 内联脚本设定，切换由 MutationObserver 同步） */
-function useTheme(): "nightlight" | "daylight" {
-  const theme = useSyncExternalStore(
-    (notify) => {
-      const obs = new MutationObserver(notify);
-      obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-      return () => obs.disconnect();
-    },
-    () => document.documentElement.getAttribute("data-theme") ?? "nightlight",
-    () => "nightlight",
-  );
-  return theme === "daylight" ? "daylight" : "nightlight";
-}
 
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T12:00:00`);
@@ -249,14 +233,6 @@ export function FeedingStation() {
 
   const active = data?.active;
 
-  const theme = useTheme();
-
-  function toggleTheme() {
-    const next = theme === "nightlight" ? "daylight" : "nightlight";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("theme-override", next);
-  }
-
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
@@ -375,20 +351,15 @@ export function FeedingStation() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
-      {/* 顶栏：logo + 标题 + 主题切换 */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/duofu.gif"
-            alt="可可"
-            className="size-10 rounded-xl shadow-sm"
-          />
-          <h1 className="text-xl font-bold">可可的喂养台</h1>
-        </div>
-        <button className="btn btn-circle btn-ghost btn-sm" onClick={toggleTheme} aria-label="切换昼夜主题">
-          {theme === "nightlight" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
+      {/* 顶栏：logo + 标题 */}
+      <div className="mb-3 flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/duofu.gif"
+          alt="可可"
+          className="size-10 rounded-xl shadow-sm"
+        />
+        <h1 className="text-xl font-bold">可可的喂养台</h1>
       </div>
 
       {/* 日期导航 */}
