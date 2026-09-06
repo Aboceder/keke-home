@@ -4,6 +4,7 @@ import { PhotoViewer } from "@/components/PhotoViewer";
 import { BottleModal, ManualFeedingModal, PhotoUploadModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration } from "@/lib/client";
 import type { ActiveState, DayData, Side } from "@/lib/types";
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 type Filter = "all" | "breast" | "bottle" | "stool" | "photo";
@@ -313,9 +314,18 @@ export function FeedingStation() {
 
   return (
     <main className={`mx-auto max-w-xl px-4 pb-40 ${active ? "pt-4" : "pt-4"}`}>
-      {/* 顶栏：标题 + 主题切换 */}
+      {/* 顶栏：logo + 标题 + 主题切换 */}
       <div className="mb-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold">喂养台</h1>
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/icon.png"
+            alt="可可"
+            width={40}
+            height={40}
+            className="size-10 rounded-xl shadow-sm"
+          />
+          <h1 className="text-xl font-bold">可可的喂养台</h1>
+        </div>
         <button className="btn btn-ghost btn-sm" onClick={toggleTheme} aria-label="切换昼夜主题">
           {theme === "nightlight" ? "☀️" : "🌙"}
         </button>

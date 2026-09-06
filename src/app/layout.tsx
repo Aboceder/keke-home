@@ -5,8 +5,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "喂养台",
-  description: "宝宝的喂养、排便与照片记录",
+  title: "可可的喂养台",
+  description: "可可的喂养、排便与照片记录",
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",
