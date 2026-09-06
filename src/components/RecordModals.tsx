@@ -3,7 +3,7 @@
 import { api, nowInputValue } from "@/lib/client";
 import type { BottleRecord, FeedingRecord, Side, StoolRecord } from "@/lib/types";
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
-import { Baby, Camera, Check, Droplets, Milk, Pencil, Upload, X } from "lucide-react";
+import { Baby, Camera, Check, Milk, Pencil, Toilet, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface CommonProps {
@@ -213,7 +213,7 @@ export function BottleModal({
   );
 }
 
-/* ---------------- 排便 ---------------- */
+/* ---------------- 便便 ---------------- */
 
 export function StoolModal({
   initial,
@@ -258,7 +258,7 @@ export function StoolModal({
   }
 
   return (
-    <Modal title={initial ? "编辑排便记录" : "记录排便"} icon={<Droplets className="size-5" />} onClose={onClose}>
+    <Modal title={initial ? "编辑便便记录" : "记录便便"} icon={<Toilet className="size-5" />} onClose={onClose}>
       <form onSubmit={submit} className="space-y-2">
         <Field legend="时间">
           <input

@@ -39,8 +39,43 @@ body {
   animation: breathe 2.4s ease-in-out infinite;
 }
 
+/* 标题闪亮文字：金属光泽掠过（ReactBits ShinyText 效果，纯 CSS） */
+.shiny-title {
+  color: var(--color-primary); /* 降级：不支持 background-clip:text 时显示纯色 */
+  background: linear-gradient(
+    110deg,
+    var(--color-primary) 0%,
+    var(--color-secondary) 20%,
+    var(--color-accent) 38%,
+    #ffffff 46%,
+    #ffffff 54%,
+    var(--color-accent) 62%,
+    var(--color-secondary) 80%,
+    var(--color-primary) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shiny-sweep 4.5s linear infinite;
+}
+
+@keyframes shiny-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .breathing-dot {
     animation: none;
+  }
+
+  .shiny-title {
+    animation: none;
+    -webkit-text-fill-color: var(--color-primary);
   }
 }

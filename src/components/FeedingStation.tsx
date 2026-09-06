@@ -9,9 +9,9 @@ import {
   Baby,
   ChevronLeft,
   ChevronRight,
-  Droplets,
   Milk,
   Sparkles,
+  Toilet,
   Trash2,
   Utensils,
 } from "lucide-react";
@@ -327,13 +327,13 @@ export function FeedingStation() {
         <Row
           key={`s${s.id}`}
           time={s.time.slice(11)}
-          icon={<Droplets className="size-3" />}
-          badge="排便"
+          icon={<Toilet className="size-3" />}
+          badge="便便"
           badgeClass="badge-accent"
           title={detail || "仅时间"}
           note={s.note}
           onEdit={() => setModal({ type: "editStool", id: s.id })}
-          onDelete={() => setConfirmDelete({ kind: "stool", id: s.id, label: `排便记录（${s.time.slice(11)}）` })}
+          onDelete={() => setConfirmDelete({ kind: "stool", id: s.id, label: `便便记录（${s.time.slice(11)}）` })}
         />
       ),
     });
@@ -350,7 +350,7 @@ export function FeedingStation() {
           alt="可可"
           className="size-10 rounded-xl shadow-sm"
         />
-        <h1 className="text-xl font-bold">可可的喂养台</h1>
+        <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
       </div>
 
       {/* 日期导航 */}
@@ -414,8 +414,8 @@ export function FeedingStation() {
         </div>
         <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
-            <Droplets className="size-3.5 opacity-70" />
-            排便
+            <Toilet className="size-3.5 opacity-70" />
+            便便
           </div>
           <div className="flex items-baseline gap-1">
             <span className="stat-value font-digits">{data.stats.stoolCount}</span>
@@ -439,8 +439,8 @@ export function FeedingStation() {
           奶瓶
         </button>
         <button className="btn btn-accent btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
-          <Droplets className="size-5" />
-          排便
+          <Toilet className="size-5" />
+          便便
         </button>
       </div>
 
@@ -451,7 +451,7 @@ export function FeedingStation() {
             ["all", "全部"],
             ["breast", "母乳"],
             ["bottle", "奶瓶"],
-            ["stool", "排便"],
+            ["stool", "便便"],
           ] as [Filter, string][]
         ).map(([value, label]) => (
           <button

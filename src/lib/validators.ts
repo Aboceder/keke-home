@@ -67,7 +67,7 @@ export async function validateStool(body: {
   note?: unknown;
 }) {
   const time = normalizeDt(body.time);
-  if (!time) return { error: "排便时间格式不正确" };
+  if (!time) return { error: "便便时间格式不正确" };
   if (isFutureDt(time)) return { error: "不能填写未来的时间" };
 
   const texture = typeof body.texture === "string" && body.texture ? body.texture : null;
