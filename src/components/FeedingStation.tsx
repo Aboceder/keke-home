@@ -136,10 +136,10 @@ function Row({
   onDelete: () => void;
 }) {
   return (
-    <li className="list-row items-center">
+    <li className="list-row items-center cursor-pointer" onClick={onEdit}>
       <div className="flex shrink-0 items-center gap-2">
         <span className="font-digits w-12 text-center text-base font-semibold opacity-80">{time}</span>
-        <span className={`badge badge-sm whitespace-nowrap gap-1 ${badgeClass}`}>
+        <span className={`badge badge-sm gap-1 whitespace-nowrap ${badgeClass}`}>
           {icon}
           {badge}
         </span>
@@ -149,13 +149,15 @@ function Row({
         {note && <p className="truncate text-xs opacity-60">{note}</p>}
       </div>
       <div className="flex shrink-0">
-        <div className="tooltip" data-tip="编辑">
-          <button className="btn btn-ghost btn-square btn-xs" onClick={onEdit} aria-label="编辑">
-            <Pencil className="size-3.5" />
-          </button>
-        </div>
         <div className="tooltip" data-tip="删除">
-          <button className="btn btn-ghost btn-square btn-xs text-error" onClick={onDelete} aria-label="删除">
+          <button
+            className="btn btn-ghost btn-square btn-xs text-error"
+            aria-label="删除"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
             <Trash2 className="size-3.5" />
           </button>
         </div>
@@ -309,8 +311,8 @@ export function FeedingStation() {
           icon={<Milk className="size-3" />}
           badge="奶瓶"
           badgeClass="badge-secondary"
-          title={`${b.amountMl} ml`}
-          note={b.note}
+          title={`${b.amountMl}ml${b.note ? `·${b.note}` : ""}`}
+          note={null}
           onEdit={() => setModal({ type: "editBottle", id: b.id })}
           onDelete={() =>
             setConfirmDelete({ kind: "bottle", id: b.id, label: `奶瓶记录（${b.time.slice(11)}，${b.amountMl} 毫升）` })
