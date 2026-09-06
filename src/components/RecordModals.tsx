@@ -105,10 +105,12 @@ function FormError({ message }: { message: string | null }) {
 export function StartFeedingModal({
   onClose,
   onStart,
+  onManual,
   busy,
 }: {
   onClose: () => void;
   onStart: (side: Side) => void;
+  onManual: () => void;
   busy: boolean;
 }) {
   return (
@@ -121,6 +123,12 @@ export function StartFeedingModal({
           </button>
           <button className="btn btn-primary h-16 text-base" disabled={busy} onClick={() => onStart("right")}>
             右侧开始
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <button className="btn btn-ghost btn-sm" onClick={onManual}>
+            <Pencil className="size-3.5" />
+            补录母乳（手动填写时长）
           </button>
         </div>
         <div className="text-center">

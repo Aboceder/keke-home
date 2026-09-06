@@ -3,6 +3,12 @@
   themes: dracula --default;
 }
 
+/* 圆角微调：除 tag(badge) 外，其余稍微更圆 */
+[data-theme="dracula"] {
+  --radius-field: 0.75rem; /* 按钮、输入框 */
+  --radius-box: 1.25rem; /* 卡片、弹窗、列表 */
+}
+
 /* 计时与统计数字用圆润几何字体；中文正文走系统字体 */
 .font-digits {
   font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;

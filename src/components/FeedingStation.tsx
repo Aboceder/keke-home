@@ -1,26 +1,23 @@
 "use client";
 
-import { PhotoViewer } from "@/components/PhotoViewer";
-import { BottleModal, ManualFeedingModal, PhotoUploadModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
+import { BottleModal, ManualFeedingModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration } from "@/lib/client";
 import type { ActiveState, DayData, Side } from "@/lib/types";
 import {
   AlertCircle,
   AlertTriangle,
   Baby,
-  Camera,
   ChevronLeft,
   ChevronRight,
   Droplets,
   Milk,
-  Pencil,
   Sparkles,
   Trash2,
   Utensils,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Filter = "all" | "breast" | "bottle" | "stool" | "photo";
+type Filter = "all" | "breast" | "bottle" | "stool";
 
 const SIDE_NAME: Record<Side, string> = { left: "左侧", right: "右侧" };
 
@@ -181,13 +178,11 @@ export function FeedingStation() {
     | { type: "bottle" }
     | { type: "stool" }
     | { type: "manualFeeding" }
-    | { type: "photo" }
     | { type: "editBottle"; id: number }
     | { type: "editStool"; id: number }
     | { type: "editFeeding"; id: number }
     | null
   >(null);
-  const [viewerIdx, setViewerIdx] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     kind: "feeding" | "bottle" | "stool";
     id: number;
@@ -345,9 +340,6 @@ export function FeedingStation() {
   }
   entries.sort((a, b) => (a.time < b.time ? 1 : -1));
 
-  const showPhotos = filter === "all" || filter === "photo";
-  const showEntries = filter === "all" || filter !== "photo";
-
   return (
     <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
       {/* 顶栏：logo + 标题 */}
@@ -432,33 +424,23 @@ export function FeedingStation() {
         </div>
       </div>
 
-      {/* 四个固定入口 */}
-      <div className="mb-2 grid grid-cols-2 gap-3">
+      {/* 三个固定入口 */}
+      <div className="mb-4 grid grid-cols-3 gap-2">
         <button
           className="btn btn-primary btn-lg h-16 text-base"
           disabled={busy || !!active?.exists}
           onClick={() => setModal({ type: "startFeeding" })}
         >
           <Baby className="size-5" />
-          {active?.exists ? "喂养中…" : "开始母乳"}
+          母乳
         </button>
         <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "bottle" })}>
           <Milk className="size-5" />
-          记录奶瓶
+          奶瓶
         </button>
         <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
           <Droplets className="size-5" />
-          记录排便
-        </button>
-        <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "photo" })}>
-          <Camera className="size-5" />
-          上传照片
-        </button>
-      </div>
-      <div className="mb-4 text-center">
-        <button className="btn btn-ghost btn-xs" onClick={() => setModal({ type: "manualFeeding" })}>
-          <Pencil className="size-3.5" />
-          补录母乳（手动填写时长）
+          排便
         </button>
       </div>
 
@@ -470,7 +452,6 @@ export function FeedingStation() {
             ["breast", "母乳"],
             ["bottle", "奶瓶"],
             ["stool", "排便"],
-            ["photo", "照片"],
           ] as [Filter, string][]
         ).map(([value, label]) => (
           <button
@@ -483,27 +464,8 @@ export function FeedingStation() {
         ))}
       </div>
 
-      {/* 当天照片（时间线顶部独立区域） */}
-      {showPhotos && data.photos.length > 0 && (
-        <section className="mb-4">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {data.photos.map((p, i) => (
-              <button key={p.id} className="shrink-0" onClick={() => setViewerIdx(i)} aria-label={p.note ?? "查看照片"}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/photos/${p.id}/image?v=thumb`}
-                  alt={p.note ?? "可可的照片"}
-                  className="size-24 rounded-xl object-cover shadow-sm"
-                />
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* 时间线 */}
-      {showEntries && (
-        <section>
+      <section>
           {entries.length === 0 ? (
             <div className="py-12 text-center">
               <Sparkles className="mx-auto mb-2 size-6 opacity-40" />
@@ -516,8 +478,7 @@ export function FeedingStation() {
                 .map((e) => e.node)}
             </ul>
           )}
-        </section>
-      )}
+      </section>
 
       {/* 常驻喂养条 */}
       {active?.exists && <ActiveBar active={active} nowMs={nowMs} onAction={handleActive} busy={busy} />}
@@ -541,6 +502,7 @@ export function FeedingStation() {
             setModal(null);
             run(() => api("/api/active", { method: "POST", body: JSON.stringify({ action: "start", side }) }));
           }}
+          onManual={() => setModal({ type: "manualFeeding" })}
         />
       )}
       {modal?.type === "bottle" && (
@@ -560,21 +522,6 @@ export function FeedingStation() {
       )}
       {modal?.type === "editFeeding" && editingFeeding && (
         <ManualFeedingModal initial={editingFeeding} onClose={() => setModal(null)} onSaved={refresh} />
-      )}
-      {modal?.type === "photo" && (
-        <PhotoUploadModal today={data.today} onClose={() => setModal(null)} onSaved={refresh} />
-      )}
-
-      {/* 照片查看器 */}
-      {viewerIdx != null && (
-        <PhotoViewer
-          photos={data.photos}
-          index={viewerIdx}
-          today={data.today}
-          onClose={() => setViewerIdx(null)}
-          onError={showError}
-          onChanged={refresh}
-        />
       )}
 
       {/* 删除确认 */}
