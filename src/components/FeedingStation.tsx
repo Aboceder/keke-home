@@ -422,37 +422,45 @@ export function FeedingStation() {
 
       {/* 统计（不随筛选变化）：移动端 2x2，桌面 4 列 */}
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="rounded-box bg-base-200 px-3 py-3">
+        <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
             <Baby className="size-3.5 opacity-70" />
             母乳
           </div>
-          <div className="stat-value font-digits">{data.stats.breastCount}</div>
-          <div className="stat-desc">次</div>
+          <div className="flex items-baseline gap-1">
+            <span className="stat-value font-digits">{data.stats.breastCount}</span>
+            <span className="text-xs opacity-60">次</span>
+          </div>
         </div>
-        <div className="rounded-box bg-base-200 px-3 py-3">
+        <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
             <Milk className="size-3.5 opacity-70" />
             奶瓶
           </div>
-          <div className="stat-value font-digits">{data.stats.bottleCount}</div>
-          <div className="stat-desc">次 · {data.stats.bottleMl} 毫升</div>
+          <div className="flex items-baseline gap-1">
+            <span className="stat-value font-digits">{data.stats.bottleCount}</span>
+            <span className="text-xs opacity-60">次 · {data.stats.bottleMl} ml</span>
+          </div>
         </div>
-        <div className="rounded-box bg-base-200 px-3 py-3">
+        <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
             <Utensils className="size-3.5 opacity-70" />
             总喂养
           </div>
-          <div className="stat-value font-digits">{data.stats.feedCount}</div>
-          <div className="stat-desc">次</div>
+          <div className="flex items-baseline gap-1">
+            <span className="stat-value font-digits">{data.stats.feedCount}</span>
+            <span className="text-xs opacity-60">次</span>
+          </div>
         </div>
-        <div className="rounded-box bg-base-200 px-3 py-3">
+        <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
             <Droplets className="size-3.5 opacity-70" />
             排便
           </div>
-          <div className="stat-value font-digits">{data.stats.stoolCount}</div>
-          <div className="stat-desc">次</div>
+          <div className="flex items-baseline gap-1">
+            <span className="stat-value font-digits">{data.stats.stoolCount}</span>
+            <span className="text-xs opacity-60">次</span>
+          </div>
         </div>
       </div>
 
