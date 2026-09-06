@@ -4,7 +4,6 @@ import { PhotoViewer } from "@/components/PhotoViewer";
 import { BottleModal, ManualFeedingModal, PhotoUploadModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration } from "@/lib/client";
 import type { ActiveState, DayData, Side } from "@/lib/types";
-import Image from "next/image";
 import {
   AlertCircle,
   AlertTriangle,
@@ -379,11 +378,10 @@ export function FeedingStation() {
       {/* 顶栏：logo + 标题 + 主题切换 */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <Image
-            src="/icon.png"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/duofu.gif"
             alt="可可"
-            width={40}
-            height={40}
             className="size-10 rounded-xl shadow-sm"
           />
           <h1 className="text-xl font-bold">可可的喂养台</h1>
