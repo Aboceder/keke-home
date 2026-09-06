@@ -3,6 +3,7 @@
 import { api, nowInputValue } from "@/lib/client";
 import type { BottleRecord, FeedingRecord, Side, StoolRecord } from "@/lib/types";
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
+import { Baby, Camera, Check, Droplets, Milk, Pencil, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 interface CommonProps {
@@ -13,10 +14,12 @@ interface CommonProps {
 /** daisyUI dialog 弹窗外壳 */
 function Modal({
   title,
+  icon,
   onClose,
   children,
 }: {
   title: string;
+  icon?: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -32,9 +35,10 @@ function Modal({
     // 导致弹窗刚打开就被关掉。DOM 移除时浏览器会自行关闭 dialog。
   }, []);
   return (
-    <dialog ref={ref} className="modal" onClose={onClose} tabIndex={-1}>
+    <dialog ref={ref} className="modal" onClose={onClose}>
       <div className="modal-box max-w-sm">
-        <h3 className="mb-4 text-lg font-bold" tabIndex={-1} autoFocus>
+        <h3 className="mb-4 flex items-center gap-2 text-lg font-bold" tabIndex={-1} autoFocus>
+          {icon}
           {title}
         </h3>
         {children}
@@ -46,12 +50,48 @@ function Modal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** daisyUI fieldset 包装的表单字段 */
+function Field({
+  legend,
+  hint,
+  children,
+}: {
+  legend: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm opacity-70">{label}</span>
+    <fieldset className="fieldset">
+      <legend className="fieldset-legend">{legend}</legend>
       {children}
-    </label>
+      {hint && <p className="label opacity-60">{hint}</p>}
+    </fieldset>
+  );
+}
+
+/** 弹窗底部：取消 + 保存 */
+function FormActions({
+  onClose,
+  busy,
+  confirmLabel = "保存",
+  confirmIcon = <Check className="size-4" />,
+}: {
+  onClose: () => void;
+  busy: boolean;
+  confirmLabel?: string;
+  confirmIcon?: React.ReactNode;
+}) {
+  return (
+    <div className="modal-action">
+      <button type="button" className="btn" onClick={onClose}>
+        <X className="size-4" />
+        取消
+      </button>
+      <button type="submit" className="btn btn-primary" disabled={busy}>
+        {confirmIcon}
+        {confirmLabel}
+      </button>
+    </div>
   );
 }
 
@@ -72,7 +112,7 @@ export function StartFeedingModal({
   busy: boolean;
 }) {
   return (
-    <Modal title="开始喂奶" onClose={onClose}>
+    <Modal title="开始喂奶" icon={<Baby className="size-5" />} onClose={onClose}>
       <div className="space-y-3">
         <p className="text-sm opacity-70">选择先喂哪一侧，结束后可切换另一侧或结束喂奶。</p>
         <div className="grid grid-cols-2 gap-3">
@@ -85,6 +125,7 @@ export function StartFeedingModal({
         </div>
         <div className="text-center">
           <button className="btn btn-ghost btn-sm" onClick={onClose}>
+            <X className="size-4" />
             取消
           </button>
         </div>
@@ -126,9 +167,9 @@ export function BottleModal({
   }
 
   return (
-    <Modal title={initial ? "编辑奶瓶记录" : "记录奶瓶"} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="喂奶时间">
+    <Modal title={initial ? "编辑奶瓶记录" : "记录奶瓶"} icon={<Milk className="size-5" />} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="喂奶时间">
           <input
             type="datetime-local"
             className="input w-full"
@@ -137,7 +178,7 @@ export function BottleModal({
             required
           />
         </Field>
-        <Field label="奶量（毫升）">
+        <Field legend="奶量（毫升）">
           <input
             type="number"
             min={1}
@@ -149,7 +190,7 @@ export function BottleModal({
             required
           />
         </Field>
-        <Field label="备注（可选）">
+        <Field legend="备注（可选）">
           <textarea
             className="textarea w-full"
             value={note}
@@ -158,14 +199,7 @@ export function BottleModal({
           />
         </Field>
         <FormError message={error} />
-        <div className="modal-action">
-          <button type="button" className="btn" onClick={onClose}>
-            取消
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            保存
-          </button>
-        </div>
+        <FormActions onClose={onClose} busy={busy} />
       </form>
     </Modal>
   );
@@ -216,9 +250,9 @@ export function StoolModal({
   }
 
   return (
-    <Modal title={initial ? "编辑排便记录" : "记录排便"} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="时间">
+    <Modal title={initial ? "编辑排便记录" : "记录排便"} icon={<Droplets className="size-5" />} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="时间">
           <input
             type="datetime-local"
             className="input w-full"
@@ -227,7 +261,7 @@ export function StoolModal({
             required
           />
         </Field>
-        <Field label="性状（可选）">
+        <Field legend="性状（可选）">
           <select className="select w-full" value={texture} onChange={(e) => setTexture(e.target.value)}>
             <option value="">不记录</option>
             {STOOL_TEXTURES.map((t) => (
@@ -238,7 +272,7 @@ export function StoolModal({
           </select>
         </Field>
         {texture === "其他" && (
-          <Field label="性状补充说明（必填）">
+          <Field legend="性状补充说明（必填）">
             <input
               type="text"
               className="input w-full"
@@ -248,7 +282,7 @@ export function StoolModal({
             />
           </Field>
         )}
-        <Field label="颜色（可选）">
+        <Field legend="颜色（可选）">
           <select className="select w-full" value={color} onChange={(e) => setColor(e.target.value)}>
             <option value="">不记录</option>
             {STOOL_COLORS.map((c) => (
@@ -259,7 +293,7 @@ export function StoolModal({
           </select>
         </Field>
         {color === "其他" && (
-          <Field label="颜色补充说明（必填）">
+          <Field legend="颜色补充说明（必填）">
             <input
               type="text"
               className="input w-full"
@@ -269,7 +303,7 @@ export function StoolModal({
             />
           </Field>
         )}
-        <Field label="备注（可选）">
+        <Field legend="备注（可选）">
           <textarea
             className="textarea w-full"
             value={note}
@@ -277,14 +311,7 @@ export function StoolModal({
           />
         </Field>
         <FormError message={error} />
-        <div className="modal-action">
-          <button type="button" className="btn" onClick={onClose}>
-            取消
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            保存
-          </button>
-        </div>
+        <FormActions onClose={onClose} busy={busy} />
       </form>
     </Modal>
   );
@@ -333,9 +360,13 @@ export function ManualFeedingModal({
   }
 
   return (
-    <Modal title={initial ? "编辑母乳记录" : "补录母乳"} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="开始时间">
+    <Modal
+      title={initial ? "编辑母乳记录" : "补录母乳"}
+      icon={<Pencil className="size-5" />}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="开始时间">
           <input
             type="datetime-local"
             className="input w-full"
@@ -345,7 +376,7 @@ export function ManualFeedingModal({
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="左侧时长（分钟）">
+          <Field legend="左侧时长（分钟）" hint="可为空">
             <input
               type="number"
               min={1}
@@ -353,10 +384,10 @@ export function ManualFeedingModal({
               className="input w-full"
               value={left}
               onChange={(e) => setLeft(e.target.value)}
-              placeholder="可为空"
+              placeholder="0"
             />
           </Field>
-          <Field label="右侧时长（分钟）">
+          <Field legend="右侧时长（分钟）" hint="可为空">
             <input
               type="number"
               min={1}
@@ -364,19 +395,12 @@ export function ManualFeedingModal({
               className="input w-full"
               value={right}
               onChange={(e) => setRight(e.target.value)}
-              placeholder="可为空"
+              placeholder="0"
             />
           </Field>
         </div>
         <FormError message={error} />
-        <div className="modal-action">
-          <button type="button" className="btn" onClick={onClose}>
-            取消
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            保存
-          </button>
-        </div>
+        <FormActions onClose={onClose} busy={busy} />
       </form>
     </Modal>
   );
@@ -421,9 +445,9 @@ export function PhotoUploadModal({
   }
 
   return (
-    <Modal title="上传照片" onClose={onClose}>
-      <form onSubmit={submit} className="space-y-3">
-        <Field label="照片日期">
+    <Modal title="上传照片" icon={<Camera className="size-5" />} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="照片日期">
           <input
             type="date"
             className="input w-full"
@@ -433,7 +457,7 @@ export function PhotoUploadModal({
             required
           />
         </Field>
-        <Field label="选择照片（可多选，每张单独填备注）">
+        <Field legend="选择照片" hint="可多选，每张单独填备注">
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic"
@@ -443,7 +467,7 @@ export function PhotoUploadModal({
           />
         </Field>
         {files.map((f, i) => (
-          <Field key={`${f.name}-${i}`} label={`备注（${f.name}）`}>
+          <Field key={`${f.name}-${i}`} legend={`备注（${f.name}）`}>
             <input
               type="text"
               className="input w-full"
@@ -456,14 +480,12 @@ export function PhotoUploadModal({
           </Field>
         ))}
         <FormError message={error} />
-        <div className="modal-action">
-          <button type="button" className="btn" onClick={onClose}>
-            取消
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || files.length === 0}>
-            上传
-          </button>
-        </div>
+        <FormActions
+          onClose={onClose}
+          busy={busy}
+          confirmLabel={files.length > 0 ? `上传 ${files.length} 张` : "上传"}
+          confirmIcon={<Upload className="size-4" />}
+        />
       </form>
     </Modal>
   );

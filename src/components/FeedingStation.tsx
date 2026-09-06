@@ -5,6 +5,22 @@ import { BottleModal, ManualFeedingModal, PhotoUploadModal, StartFeedingModal, S
 import { api, fmtClock, fmtDuration } from "@/lib/client";
 import type { ActiveState, DayData, Side } from "@/lib/types";
 import Image from "next/image";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Baby,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Droplets,
+  Milk,
+  Moon,
+  Pencil,
+  Sparkles,
+  Sun,
+  Trash2,
+  Utensils,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 type Filter = "all" | "breast" | "bottle" | "stool" | "photo";
@@ -54,17 +70,14 @@ function ActiveBar({
   if (active.activeSide) {
     return (
       <div className="fixed inset-x-0 bottom-0 z-40 p-3">
-        <div className="bg-primary text-primary-content mx-auto flex max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <span className="breathing-dot inline-block size-3 rounded-full bg-current" />
-            <div>
-              <p className="text-sm opacity-80">
-                母乳 · {SIDE_NAME[active.activeSide]}计时中
-              </p>
-              <p className="font-digits text-3xl leading-none font-bold">
-                {fmtClock(liveElapsed)}
-              </p>
-            </div>
+        <div role="alert" className="alert bg-primary text-primary-content mx-auto max-w-xl rounded-2xl shadow-lg">
+          <div className="flex items-center gap-1.5">
+            <span className="breathing-dot size-3 rounded-full bg-current" />
+            <Milk className="size-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
+            <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
           </div>
           <button className="btn" disabled={busy} onClick={() => onAction("endSide")}>
             结束本侧
@@ -90,8 +103,9 @@ function ActiveBar({
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 p-3">
-      <div className="bg-warning text-warning-content mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg">
-        <div>
+      <div role="alert" className="alert alert-warning mx-auto flex-wrap max-w-xl rounded-2xl shadow-lg">
+        <AlertTriangle className="size-6 shrink-0" />
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">一侧已喂完，切换另一侧还是结束喂奶？</p>
           <p className="font-digits text-sm opacity-80">
             已喂 {fmtDuration(doneTotal)}
@@ -114,6 +128,56 @@ function ActiveBar({
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------------- 时间线行 ---------------- */
+
+function Row({
+  time,
+  icon,
+  badge,
+  badgeClass,
+  title,
+  note,
+  onEdit,
+  onDelete,
+}: {
+  time: string;
+  icon: React.ReactNode;
+  badge: string;
+  badgeClass: string;
+  title: string;
+  note: string | null;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <li className="list-row items-center gap-3">
+      <span className="font-digits w-12 shrink-0 text-center text-base font-semibold opacity-80">
+        {time}
+      </span>
+      <span className={`badge badge-sm shrink-0 gap-1 ${badgeClass}`}>
+        {icon}
+        {badge}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm">{title}</p>
+        {note && <p className="truncate text-xs opacity-60">{note}</p>}
+      </div>
+      <div className="flex shrink-0">
+        <div className="tooltip" data-tip="编辑">
+          <button className="btn btn-ghost btn-square btn-xs" onClick={onEdit} aria-label="编辑">
+            <Pencil className="size-3.5" />
+          </button>
+        </div>
+        <div className="tooltip" data-tip="删除">
+          <button className="btn btn-ghost btn-square btn-xs text-error" onClick={onDelete} aria-label="删除">
+            <Trash2 className="size-3.5" />
+          </button>
+        </div>
+      </div>
+    </li>
   );
 }
 
@@ -161,7 +225,6 @@ export function FeedingStation() {
   }, [date, showError]);
 
   // 自动同步：轮询（可见页每 2 秒）+ 计时本地走秒
-  // setState 只出现在 Promise 回调中，避免 effect 同步渲染
   useEffect(() => {
     let alive = true;
     const tick = () => {
@@ -189,7 +252,6 @@ export function FeedingStation() {
 
   const theme = useTheme();
 
-  // 主题切换
   function toggleTheme() {
     const next = theme === "nightlight" ? "daylight" : "nightlight";
     document.documentElement.setAttribute("data-theme", next);
@@ -247,6 +309,7 @@ export function FeedingStation() {
         <Row
           key={`f${f.id}`}
           time={f.startedAt.slice(11)}
+          icon={<Baby className="size-3" />}
           badge="母乳"
           badgeClass="badge-primary"
           title={`${sides.join(" · ") || "时长待补"}（共 ${fmtDuration((f.leftSeconds ?? 0) + (f.rightSeconds ?? 0))}）`}
@@ -271,6 +334,7 @@ export function FeedingStation() {
         <Row
           key={`b${b.id}`}
           time={b.time.slice(11)}
+          icon={<Milk className="size-3" />}
           badge="奶瓶"
           badgeClass="badge-secondary"
           title={`${b.amountMl} 毫升`}
@@ -297,6 +361,7 @@ export function FeedingStation() {
         <Row
           key={`s${s.id}`}
           time={s.time.slice(11)}
+          icon={<Droplets className="size-3" />}
           badge="排便"
           badgeClass="badge-accent"
           title={detail || "仅时间"}
@@ -313,7 +378,7 @@ export function FeedingStation() {
   const showEntries = filter === "all" || filter !== "photo";
 
   return (
-    <main className={`mx-auto max-w-xl px-4 pb-40 ${active ? "pt-4" : "pt-4"}`}>
+    <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
       {/* 顶栏：logo + 标题 + 主题切换 */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -326,15 +391,15 @@ export function FeedingStation() {
           />
           <h1 className="text-xl font-bold">可可的喂养台</h1>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={toggleTheme} aria-label="切换昼夜主题">
-          {theme === "nightlight" ? "☀️" : "🌙"}
+        <button className="btn btn-circle btn-ghost btn-sm" onClick={toggleTheme} aria-label="切换昼夜主题">
+          {theme === "nightlight" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </button>
       </div>
 
       {/* 日期导航 */}
-      <div className="mb-3 flex items-center gap-2">
-        <button className="btn btn-sm" onClick={() => setDate(shiftDate(data.date, -1))} aria-label="前一天">
-          ‹
+      <div className="mb-4 flex items-center gap-2">
+        <button className="btn btn-circle btn-sm" onClick={() => setDate(shiftDate(data.date, -1))} aria-label="前一天">
+          <ChevronLeft className="size-4" />
         </button>
         <input
           type="date"
@@ -344,12 +409,12 @@ export function FeedingStation() {
           onChange={(e) => e.target.value && setDate(e.target.value)}
         />
         <button
-          className="btn btn-sm"
+          className="btn btn-circle btn-sm"
           disabled={isToday}
           onClick={() => setDate(shiftDate(data.date, 1))}
           aria-label="后一天"
         >
-          ›
+          <ChevronRight className="size-4" />
         </button>
         {!isToday && (
           <button className="btn btn-sm btn-ghost" onClick={() => setDate(data.today)}>
@@ -361,22 +426,34 @@ export function FeedingStation() {
       {/* 统计（不随筛选变化） */}
       <div className="stats stats-vertical sm:stats-horizontal mb-4 w-full bg-base-200 shadow-sm">
         <div className="stat py-3">
-          <div className="stat-title text-xs">母乳</div>
+          <div className="stat-title flex items-center gap-1 text-xs">
+            <Baby className="size-3.5 opacity-70" />
+            母乳
+          </div>
           <div className="stat-value font-digits text-2xl">{data.stats.breastCount}</div>
           <div className="stat-desc text-xs">次</div>
         </div>
         <div className="stat py-3">
-          <div className="stat-title text-xs">奶瓶</div>
+          <div className="stat-title flex items-center gap-1 text-xs">
+            <Milk className="size-3.5 opacity-70" />
+            奶瓶
+          </div>
           <div className="stat-value font-digits text-2xl">{data.stats.bottleCount}</div>
           <div className="stat-desc text-xs">次 · {data.stats.bottleMl} 毫升</div>
         </div>
         <div className="stat py-3">
-          <div className="stat-title text-xs">总喂养</div>
+          <div className="stat-title flex items-center gap-1 text-xs">
+            <Utensils className="size-3.5 opacity-70" />
+            总喂养
+          </div>
           <div className="stat-value font-digits text-2xl">{data.stats.feedCount}</div>
           <div className="stat-desc text-xs">次</div>
         </div>
         <div className="stat py-3">
-          <div className="stat-title text-xs">排便</div>
+          <div className="stat-title flex items-center gap-1 text-xs">
+            <Droplets className="size-3.5 opacity-70" />
+            排便
+          </div>
           <div className="stat-value font-digits text-2xl">{data.stats.stoolCount}</div>
           <div className="stat-desc text-xs">次</div>
         </div>
@@ -389,20 +466,25 @@ export function FeedingStation() {
           disabled={busy || !!active?.exists}
           onClick={() => setModal({ type: "startFeeding" })}
         >
+          <Baby className="size-5" />
           {active?.exists ? "喂养中…" : "开始母乳"}
         </button>
         <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "bottle" })}>
+          <Milk className="size-5" />
           记录奶瓶
         </button>
         <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
+          <Droplets className="size-5" />
           记录排便
         </button>
         <button className="btn btn-lg h-16 text-base" onClick={() => setModal({ type: "photo" })}>
+          <Camera className="size-5" />
           上传照片
         </button>
       </div>
       <div className="mb-4 text-center">
         <button className="btn btn-ghost btn-xs" onClick={() => setModal({ type: "manualFeeding" })}>
+          <Pencil className="size-3.5" />
           补录母乳（手动填写时长）
         </button>
       </div>
@@ -437,7 +519,7 @@ export function FeedingStation() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/photos/${p.id}/image?v=thumb`}
-                  alt={p.note ?? "宝宝照片"}
+                  alt={p.note ?? "可可的照片"}
                   className="size-24 rounded-xl object-cover shadow-sm"
                 />
               </button>
@@ -448,15 +530,19 @@ export function FeedingStation() {
 
       {/* 时间线 */}
       {showEntries && (
-        <section className="space-y-2">
-          {entries.length === 0 && (
-            <p className="py-8 text-center text-sm opacity-60">
-              今天还没有记录，从上方按钮开始吧。
-            </p>
+        <section>
+          {entries.length === 0 ? (
+            <div className="py-12 text-center">
+              <Sparkles className="mx-auto mb-2 size-6 opacity-40" />
+              <p className="text-sm opacity-60">今天还没有记录，从上方按钮开始吧。</p>
+            </div>
+          ) : (
+            <ul className="list bg-base-100 rounded-2xl shadow-sm">
+              {entries
+                .filter((e) => filter === "all" || filter === e.kind)
+                .map((e) => e.node)}
+            </ul>
           )}
-          {entries
-            .filter((e) => filter === "all" || filter === e.kind)
-            .map((e) => e.node)}
         </section>
       )}
 
@@ -466,7 +552,8 @@ export function FeedingStation() {
       {/* 错误提示 */}
       {toast && (
         <div className="toast toast-top toast-center z-50">
-          <div className="alert alert-error text-sm shadow-lg">
+          <div role="alert" className="alert alert-error text-sm shadow-lg">
+            <AlertCircle className="size-4" />
             <span>{toast}</span>
           </div>
         </div>
@@ -521,7 +608,10 @@ export function FeedingStation() {
       {confirmDelete && (
         <dialog className="modal modal-open">
           <div className="modal-box max-w-sm">
-            <h3 className="text-lg font-bold">确认删除</h3>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-warning" />
+              <h3 className="text-lg font-bold">确认删除</h3>
+            </div>
             <p className="py-3 text-sm">
               将删除{confirmDelete.label}，删除后不可恢复。
             </p>
@@ -530,6 +620,7 @@ export function FeedingStation() {
                 取消
               </button>
               <button className="btn btn-error" onClick={handleDelete}>
+                <Trash2 className="size-4" />
                 删除
               </button>
             </div>
@@ -538,44 +629,5 @@ export function FeedingStation() {
         </dialog>
       )}
     </main>
-  );
-}
-
-/* ---------------- 时间线行 ---------------- */
-
-function Row({
-  time,
-  badge,
-  badgeClass,
-  title,
-  note,
-  onEdit,
-  onDelete,
-}: {
-  time: string;
-  badge: string;
-  badgeClass: string;
-  title: string;
-  note: string | null;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl bg-base-100 p-3 shadow-sm">
-      <span className="font-digits w-12 shrink-0 text-center text-lg font-semibold">{time}</span>
-      <span className={`badge badge-sm shrink-0 ${badgeClass}`}>{badge}</span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">{title}</p>
-        {note && <p className="truncate text-xs opacity-60">{note}</p>}
-      </div>
-      <div className="flex shrink-0 gap-1">
-        <button className="btn btn-ghost btn-xs" onClick={onEdit} aria-label="编辑">
-          编辑
-        </button>
-        <button className="btn btn-ghost btn-xs text-error" onClick={onDelete} aria-label="删除">
-          删除
-        </button>
-      </div>
-    </div>
   );
 }

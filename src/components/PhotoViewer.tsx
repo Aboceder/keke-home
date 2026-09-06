@@ -2,6 +2,7 @@
 
 import { api } from "@/lib/client";
 import type { PhotoRecord } from "@/lib/types";
+import { Check, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -48,6 +49,7 @@ export function PhotoViewer({ photos, index, today, onClose, onError, onChanged 
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm">
       <div className="flex items-center justify-between p-3 text-white">
         <button className="btn btn-sm btn-ghost text-white" onClick={onClose}>
+          <X className="size-4" />
           关闭
         </button>
         <span className="font-digits text-sm opacity-80">
@@ -63,7 +65,7 @@ export function PhotoViewer({ photos, index, today, onClose, onError, onChanged 
             className="btn btn-circle btn-ghost text-white absolute left-2 z-10"
             onClick={() => setIdx(idx - 1)}
           >
-            ‹
+            <ChevronLeft className="size-6" />
           </button>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -78,7 +80,7 @@ export function PhotoViewer({ photos, index, today, onClose, onError, onChanged 
             className="btn btn-circle btn-ghost text-white absolute right-2 z-10"
             onClick={() => setIdx(idx + 1)}
           >
-            ›
+            <ChevronRight className="size-6" />
           </button>
         )}
       </div>
@@ -162,6 +164,7 @@ function PhotoEditPanel({
                 取消
               </button>
               <button className="btn btn-error btn-sm" disabled={busy} onClick={onDelete}>
+                <Trash2 className="size-4" />
                 确认删除
               </button>
             </div>
@@ -169,9 +172,11 @@ function PhotoEditPanel({
         ) : (
           <>
             <button className="btn btn-error btn-sm" disabled={busy} onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="size-4" />
               删除
             </button>
             <button className="btn btn-primary btn-sm" disabled={busy} onClick={save}>
+              <Check className="size-4" />
               保存修改
             </button>
           </>
