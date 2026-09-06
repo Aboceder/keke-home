@@ -320,10 +320,7 @@ export function FeedingStation() {
     });
   }
   for (const s of data.stools) {
-    const detail = [
-      s.texture === "其他" ? `其他（${s.textureOther}）` : s.texture,
-      s.color === "其他" ? `其他（${s.colorOther}）` : s.color,
-    ]
+    const detail = [s.textureOther ?? s.texture, s.colorOther ?? s.color]
       .filter(Boolean)
       .join(" · ");
     entries.push({
