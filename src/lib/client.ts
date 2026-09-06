@@ -30,11 +30,10 @@ export async function api<T = unknown>(url: string, opts?: RequestInit): Promise
   return data;
 }
 
-/** 秒 → "X分Y秒" / "X分钟"（时间线展示按分钟） */
+/** 秒 → "0s" / "X min"（单位用英文） */
 export function fmtDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}秒`;
-  const m = Math.round(seconds / 60);
-  return `${m}分钟`;
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.round(seconds / 60)} min`;
 }
 
 /** 秒 → "H:MM:SS"（计时器大数字） */

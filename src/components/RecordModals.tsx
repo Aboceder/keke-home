@@ -178,7 +178,7 @@ export function BottleModal({
             required
           />
         </Field>
-        <Field legend="奶量（毫升）">
+        <Field legend="奶量（ml）">
           <input
             type="number"
             min={1}
@@ -376,7 +376,7 @@ export function ManualFeedingModal({
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field legend="左侧时长（分钟）" hint="可为空">
+          <Field legend="左侧时长（min）" hint="可为空">
             <input
               type="number"
               min={1}
@@ -387,7 +387,7 @@ export function ManualFeedingModal({
               placeholder="0"
             />
           </Field>
-          <Field legend="右侧时长（分钟）" hint="可为空">
+          <Field legend="右侧时长（min）" hint="可为空">
             <input
               type="number"
               min={1}

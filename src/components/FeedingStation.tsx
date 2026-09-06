@@ -334,7 +334,7 @@ export function FeedingStation() {
           icon={<Milk className="size-3" />}
           badge="奶瓶"
           badgeClass="badge-secondary"
-          title={`${b.amountMl} 毫升`}
+          title={`${b.amountMl} ml`}
           note={b.note}
           onEdit={() => setModal({ type: "editBottle", id: b.id })}
           onDelete={() =>
