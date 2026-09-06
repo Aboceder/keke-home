@@ -423,39 +423,39 @@ export function FeedingStation() {
         )}
       </div>
 
-      {/* 统计（不随筛选变化） */}
-      <div className="stats stats-vertical sm:stats-horizontal mb-4 w-full bg-base-200 shadow-sm">
-        <div className="stat py-3">
-          <div className="stat-title flex items-center gap-1 text-xs">
+      {/* 统计（不随筛选变化）：移动端 2x2，桌面 4 列 */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-box bg-base-200 px-3 py-3">
+          <div className="stat-title flex items-center gap-1">
             <Baby className="size-3.5 opacity-70" />
             母乳
           </div>
-          <div className="stat-value font-digits text-2xl">{data.stats.breastCount}</div>
-          <div className="stat-desc text-xs">次</div>
+          <div className="stat-value font-digits">{data.stats.breastCount}</div>
+          <div className="stat-desc">次</div>
         </div>
-        <div className="stat py-3">
-          <div className="stat-title flex items-center gap-1 text-xs">
+        <div className="rounded-box bg-base-200 px-3 py-3">
+          <div className="stat-title flex items-center gap-1">
             <Milk className="size-3.5 opacity-70" />
             奶瓶
           </div>
-          <div className="stat-value font-digits text-2xl">{data.stats.bottleCount}</div>
-          <div className="stat-desc text-xs">次 · {data.stats.bottleMl} 毫升</div>
+          <div className="stat-value font-digits">{data.stats.bottleCount}</div>
+          <div className="stat-desc">次 · {data.stats.bottleMl} 毫升</div>
         </div>
-        <div className="stat py-3">
-          <div className="stat-title flex items-center gap-1 text-xs">
+        <div className="rounded-box bg-base-200 px-3 py-3">
+          <div className="stat-title flex items-center gap-1">
             <Utensils className="size-3.5 opacity-70" />
             总喂养
           </div>
-          <div className="stat-value font-digits text-2xl">{data.stats.feedCount}</div>
-          <div className="stat-desc text-xs">次</div>
+          <div className="stat-value font-digits">{data.stats.feedCount}</div>
+          <div className="stat-desc">次</div>
         </div>
-        <div className="stat py-3">
-          <div className="stat-title flex items-center gap-1 text-xs">
+        <div className="rounded-box bg-base-200 px-3 py-3">
+          <div className="stat-title flex items-center gap-1">
             <Droplets className="size-3.5 opacity-70" />
             排便
           </div>
-          <div className="stat-value font-digits text-2xl">{data.stats.stoolCount}</div>
-          <div className="stat-desc text-xs">次</div>
+          <div className="stat-value font-digits">{data.stats.stoolCount}</div>
+          <div className="stat-desc">次</div>
         </div>
       </div>
 
