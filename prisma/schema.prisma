@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 时间均存北京时间的墙上时间字符串 "YYYY-MM-DD HH:mm" 或 "YYYY-MM-DD"
+// 时长一律存秒
+
+model Feeding {
+  id           Int      @id @default(autoincrement())
+  startedAt    String // 开始时间 "YYYY-MM-DD HH:mm"
+  leftSeconds  Int? // 左侧时长（秒）
+  rightSeconds Int? // 右侧时长（秒）
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Bottle {
+  id        Int      @id @default(autoincrement())
+  time      String // 喂奶时间 "YYYY-MM-DD HH:mm"
+  amountMl  Int // 奶量（毫升）
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Stool {
+  id           Int      @id @default(autoincrement())
+  time         String // 排便时间 "YYYY-MM-DD HH:mm"
+  texture      String? // 稀/软/成形/干硬/其他
+  textureOther String? // 性状为"其他"时的补充说明
+  color        String? // 黄/黄褐/绿/棕/黑/其他
+  colorOther   String? // 颜色为"其他"时的补充说明
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Photo {
+  id        Int      @id @default(autoincrement())
+  date      String // 照片日期 "YYYY-MM-DD"
+  note      String?
+  file      String // 原图文件名（data/uploads 下）
+  thumb     String // 缩略图文件名（webp）
+  mime      String // 原图 MIME 类型
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+// 全局唯一的一条进行中母乳记录，id 恒为 1
+model ActiveFeeding {
+  id                   Int      @id @default(1)
+  startedAt            String // 本次喂奶开始时间 "YYYY-MM-DD HH:mm"
+  activeSide           String? // 正在计时的侧：left/right；null 表示已结束一侧、等待切换或结束
+  activeSideStartedAt  DateTime? // 当前侧开始计时的真实时刻（算经过秒数用）
+  leftSeconds          Int? // 已结束的左侧时长（秒）
+  rightSeconds         Int? // 已结束的右侧时长（秒）
+  leftDone             Boolean  @default(false)
+  rightDone            Boolean  @default(false)
+}

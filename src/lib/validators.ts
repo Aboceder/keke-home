@@ -1,0 +1,96 @@
+import { isFutureDt, normalizeDt, parseMinutes, parseMl } from "@/lib/time";
+
+/** 母乳记录（手动补录 / 编辑）：开始时间 + 左右侧分钟（至少一侧） */
+export async function validateFeeding(body: {
+  startedAt?: unknown;
+  leftMinutes?: unknown;
+  rightMinutes?: unknown;
+}) {
+  const startedAt = normalizeDt(body.startedAt);
+  if (!startedAt) return { error: "开始时间格式不正确" };
+  if (isFutureDt(startedAt)) return { error: "不能填写未来的时间" };
+
+  const left =
+    body.leftMinutes == null || body.leftMinutes === "" ? null : parseMinutes(body.leftMinutes);
+  const right =
+    body.rightMinutes == null || body.rightMinutes === "" ? null : parseMinutes(body.rightMinutes);
+  if (body.leftMinutes != null && body.leftMinutes !== "" && left == null)
+    return { error: "左侧时长必须为大于 0 的整数分钟" };
+  if (body.rightMinutes != null && body.rightMinutes !== "" && right == null)
+    return { error: "右侧时长必须为大于 0 的整数分钟" };
+  if (!left && !right) return { error: "左侧、右侧时长至少填写一侧" };
+
+  return {
+    data: {
+      startedAt,
+      leftSeconds: left ? left * 60 : null,
+      rightSeconds: right ? right * 60 : null,
+    },
+  };
+}
+
+/** 奶瓶记录：时间 + 奶量毫升 */
+export async function validateBottle(body: {
+  time?: unknown;
+  amountMl?: unknown;
+  note?: unknown;
+}) {
+  const time = normalizeDt(body.time);
+  if (!time) return { error: "喂奶时间格式不正确" };
+  if (isFutureDt(time)) return { error: "不能填写未来的时间" };
+  const amountMl = parseMl(body.amountMl);
+  if (amountMl == null) return { error: "奶量必须为大于 0 的整数毫升" };
+  const note =
+    typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
+  return { data: { time, amountMl, note } };
+}
+
+const TEXTURES = ["稀", "软", "成形", "干硬", "其他"];
+const COLORS = ["黄", "黄褐", "绿", "棕", "黑", "其他"];
+
+function optText(v: unknown, max = 200): string | null {
+  return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+}
+
+/** 排便记录：时间必填，性状颜色备注选填，选"其他"必须补充说明 */
+export async function validateStool(body: {
+  time?: unknown;
+  texture?: unknown;
+  textureOther?: unknown;
+  color?: unknown;
+  colorOther?: unknown;
+  note?: unknown;
+}) {
+  const time = normalizeDt(body.time);
+  if (!time) return { error: "排便时间格式不正确" };
+  if (isFutureDt(time)) return { error: "不能填写未来的时间" };
+
+  const texture = typeof body.texture === "string" && body.texture ? body.texture : null;
+  if (texture && !TEXTURES.includes(texture)) return { error: "性状选项不正确" };
+  const textureOther = optText(body.textureOther);
+  if (texture === "其他" && !textureOther) return { error: "性状选择\"其他\"时必须补充说明" };
+
+  const color = typeof body.color === "string" && body.color ? body.color : null;
+  if (color && !COLORS.includes(color)) return { error: "颜色选项不正确" };
+  const colorOther = optText(body.colorOther);
+  if (color === "其他" && !colorOther) return { error: "颜色选择\"其他\"时必须补充说明" };
+
+  return {
+    data: {
+      time,
+      texture: texture === "其他" ? null : texture,
+      textureOther: texture === "其他" ? textureOther : null,
+      color: color === "其他" ? null : color,
+      colorOther: color === "其他" ? colorOther : null,
+      note: optText(body.note, 500),
+    },
+  };
+}
+
+export function badId() {
+  return Response.json({ error: "无效的记录 ID" }, { status: 400 });
+}
+
+export function notFound() {
+  return Response.json({ error: "记录不存在" }, { status: 404 });
+}

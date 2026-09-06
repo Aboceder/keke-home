@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 喂养台
 
-## Getting Started
+单宝宝喂养记录应用：记录母乳、奶瓶、排便与成长照片。家庭局域网内直接访问，无需登录。
 
-First, run the development server:
+完整需求见 [requirements.md](./requirements.md)。
+
+## 功能
+
+- 🤱 **母乳计时**：选择左侧/右侧开始计时，结束后提醒「切换另一侧或结束喂奶」；计时状态保存在服务器，锁屏/切后台不丢失；全局仅允许一条进行中的喂奶
+- 🍼 **奶瓶记录**：时间 + 奶量（毫升）+ 备注
+- 💩 **排便记录**：时间 + 性状/颜色（固定选项，选「其他」需补充说明）+ 备注
+- 📷 **照片**：按日期归组，一天可传多张，每张独立备注，原图 + 缩略图
+- 📊 **当日统计**：母乳次数、奶瓶次数与总量、总喂养次数、排便次数
+- 🌙 **夜奶优先**：白天柔和亮色 / 夜间低亮度暖色双主题，按时间自动切换
+- 🔄 **多设备自动同步**：所有记录与计时状态 2 秒内同步到其他设备
+
+## 技术栈
+
+- Next.js 16 + React 19 + TypeScript
+- Prisma + SQLite
+- daisyUI 5 + Tailwind CSS 4
+- Sharp（缩略图）
+- pnpm
+
+## 快速开始
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm prisma db push    # 初始化数据库
+pnpm build
+pnpm start --hostname 0.0.0.0
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+同一局域网内访问 `http://[服务器IP]:3000`。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+时间统一使用北京时间（Asia/Shanghai）；照片与数据库均保存在本机（`prisma/dev.db` 与 `data/uploads/`），备份这两个位置即可。

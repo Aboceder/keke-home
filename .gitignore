@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploads and database
+/public/uploads
+/prisma/*.db
+/prisma/*.db-journal
+/data
