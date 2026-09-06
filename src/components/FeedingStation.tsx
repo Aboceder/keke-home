@@ -153,15 +153,15 @@ function Row({
   onDelete: () => void;
 }) {
   return (
-    <li className="list-row items-center gap-3">
-      <span className="font-digits w-12 shrink-0 text-center text-base font-semibold opacity-80">
-        {time}
-      </span>
-      <span className={`badge badge-sm shrink-0 gap-1 ${badgeClass}`}>
-        {icon}
-        {badge}
-      </span>
-      <div className="min-w-0 flex-1">
+    <li className="list-row items-center">
+      <div className="flex shrink-0 items-center gap-2">
+        <span className="font-digits w-12 text-center text-base font-semibold opacity-80">{time}</span>
+        <span className={`badge badge-sm whitespace-nowrap gap-1 ${badgeClass}`}>
+          {icon}
+          {badge}
+        </span>
+      </div>
+      <div className="list-col-grow min-w-0">
         <p className="truncate text-sm">{title}</p>
         {note && <p className="truncate text-xs opacity-60">{note}</p>}
       </div>
@@ -298,10 +298,7 @@ export function FeedingStation() {
   type Entry = { kind: "breast" | "bottle" | "stool"; time: string; node: React.ReactNode };
   const entries: Entry[] = [];
   for (const f of data.feedings) {
-    const sides = [
-      f.leftSeconds != null ? `左 ${fmtDuration(f.leftSeconds)}` : null,
-      f.rightSeconds != null ? `右 ${fmtDuration(f.rightSeconds)}` : null,
-    ].filter(Boolean);
+    const total = (f.leftSeconds ?? 0) + (f.rightSeconds ?? 0);
     entries.push({
       kind: "breast",
       time: f.startedAt,
@@ -312,7 +309,7 @@ export function FeedingStation() {
           icon={<Baby className="size-3" />}
           badge="母乳"
           badgeClass="badge-primary"
-          title={`${sides.join(" · ") || "时长待补"}（共 ${fmtDuration((f.leftSeconds ?? 0) + (f.rightSeconds ?? 0))}）`}
+          title={`共 ${fmtDuration(total)}`}
           note={f.note}
           onEdit={() => setModal({ type: "editFeeding", id: f.id })}
           onDelete={() =>

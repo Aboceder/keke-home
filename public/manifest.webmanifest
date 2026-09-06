@@ -1,0 +1,16 @@
+{
+  "name": "可可的喂养台",
+  "short_name": "喂养台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1B1815",
+  "theme_color": "#1B1815",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
