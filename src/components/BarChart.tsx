@@ -1,12 +1,90 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 export interface ChartSeries {
   name: string;
   colorVar: string;
   values: number[];
 }
 
-/** 轻量 SVG 柱状图（无第三方库）：支持多系列堆叠、横纵坐标、悬停显示数值 */
+/** 柱体层：数据变化时（key 变化）重新从基线向上生长 */
+function Bars({
+  labels,
+  series,
+  format,
+  marginLeft,
+  baseline,
+  max,
+  plotH,
+  slot,
+  barW,
+}: {
+  labels: string[];
+  series: ChartSeries[];
+  format: (value: number) => string;
+  marginLeft: number;
+  baseline: number;
+  max: number;
+  plotH: number;
+  slot: number;
+  barW: number;
+}) {
+  const [grow, setGrow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGrow(true), 40);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <g>
+      {labels.map((_, i) => {
+        const total = series.reduce((s, sr) => s + (sr.values[i] ?? 0), 0);
+        const x = marginLeft + i * slot + (slot - barW) / 2;
+        let acc = 0;
+        const segments = series.map((sr) => {
+          const v = sr.values[i] ?? 0;
+          const h = v === 0 ? 0 : Math.max(2, (v / max) * plotH);
+          const y = baseline - acc - h;
+          acc += h;
+          return { colorVar: sr.colorVar, y, h };
+        });
+        const fullH = total === 0 ? 0 : Math.max((total / max) * plotH, 2);
+        const tip = series.map((sr) => `${sr.name} ${format(sr.values[i] ?? 0)}`).join("，");
+
+        return (
+          <g
+            key={i}
+            style={{
+              transform: grow ? "scaleY(1)" : "scaleY(0)",
+              transformOrigin: `0px ${baseline}px`,
+              transformBox: "view-box",
+              transition: `transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${i * 25}ms`,
+            }}
+          >
+            {segments.map((seg, si) => (
+              <rect
+                key={si}
+                x={x}
+                y={seg.y}
+                width={barW}
+                height={seg.h}
+                style={{ fill: seg.colorVar }}
+                opacity={0.92}
+              />
+            ))}
+            {/* 透明覆盖层用于整根柱子的悬停提示 */}
+            <rect x={x} y={baseline - fullH} width={barW} height={fullH} fill="transparent">
+              <title>{`${labels[i]}：${tip}`}</title>
+            </rect>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** 轻量 SVG 柱状图（无第三方库）：多系列堆叠、横纵坐标、进入/数据变化时生长动画 */
 export function BarChart({
   labels,
   series,
@@ -41,6 +119,9 @@ export function BarChart({
 
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
+  // 数据签名：数值变化时重新触发生长动画（切换 7/14/30 天、新数据到达后）
+  const dataSig = JSON.stringify(series.map((s) => s.values));
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="柱状图">
       {/* 横向网格线 + Y 轴刻度 */}
@@ -64,43 +145,18 @@ export function BarChart({
         );
       })}
 
-      {/* 堆叠柱 */}
-      {labels.map((_, i) => {
-        const total = totals[i];
-        const x = marginLeft + i * slot + (slot - barW) / 2;
-        let acc = 0;
-        const segments = series.map((sr) => {
-          const v = sr.values[i] ?? 0;
-          const h = v === 0 ? 0 : Math.max(2, (v / max) * plotH);
-          const y = baseline - acc - h;
-          acc += h;
-          return { colorVar: sr.colorVar, y, h };
-        });
-        const fullH = total === 0 ? 0 : Math.max((total / max) * plotH, 2);
-        const tip = series
-          .map((sr) => `${sr.name} ${format(sr.values[i] ?? 0)}`)
-          .join("，");
-
-        return (
-          <g key={i}>
-            {segments.map((seg, si) => (
-              <rect
-                key={si}
-                x={x}
-                y={seg.y}
-                width={barW}
-                height={seg.h}
-                style={{ fill: seg.colorVar }}
-                opacity={0.92}
-              />
-            ))}
-            {/* 透明覆盖层用于整根柱子的悬停提示 */}
-            <rect x={x} y={baseline - fullH} width={barW} height={fullH} fill="transparent">
-              <title>{`${labels[i]}：${tip}`}</title>
-            </rect>
-          </g>
-        );
-      })}
+      <Bars
+        key={dataSig}
+        labels={labels}
+        series={series}
+        format={format}
+        marginLeft={marginLeft}
+        baseline={baseline}
+        max={max}
+        plotH={plotH}
+        slot={slot}
+        barW={barW}
+      />
 
       {/* X 轴日期标签 */}
       {[...labelIdx].sort((a, b) => a - b).map((i) => {

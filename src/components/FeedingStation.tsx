@@ -2,6 +2,7 @@
 
 import { BottleModal, ManualFeedingModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration, fmtDurationMin } from "@/lib/client";
+import { CountUp } from "@/components/CountUp";
 import type { ActiveState, DayData, Side } from "@/lib/types";
 import {
   AlertCircle,
@@ -398,7 +399,7 @@ export function FeedingStation() {
             母乳
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="stat-value font-digits">{data.stats.breastCount}</span>
+            <span className="stat-value font-digits"><CountUp value={data.stats.breastCount} /></span>
             <span className="text-xs opacity-60">次 · {fmtDurationMin(data.stats.breastSeconds)}</span>
           </div>
         </div>
@@ -408,7 +409,7 @@ export function FeedingStation() {
             奶瓶
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="stat-value font-digits">{data.stats.bottleCount}</span>
+            <span className="stat-value font-digits"><CountUp value={data.stats.bottleCount} /></span>
             <span className="text-xs opacity-60">次 · {data.stats.bottleMl} ml</span>
           </div>
         </div>
@@ -418,7 +419,7 @@ export function FeedingStation() {
             总喂养
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="stat-value font-digits">{data.stats.feedCount}</span>
+            <span className="stat-value font-digits"><CountUp value={data.stats.feedCount} /></span>
             <span className="text-xs opacity-60">次</span>
           </div>
         </div>
@@ -428,7 +429,7 @@ export function FeedingStation() {
             便便
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="stat-value font-digits">{data.stats.stoolCount}</span>
+            <span className="stat-value font-digits"><CountUp value={data.stats.stoolCount} /></span>
             <span className="text-xs opacity-60">次</span>
           </div>
         </div>

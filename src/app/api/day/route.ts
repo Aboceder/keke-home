@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   const param = request.nextUrl.searchParams.get("date");
   const date = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : nowDate();
 
-  const [feedings, bottles, stools, photos, activeRow] = await Promise.all([
+  const [feedings, bottles, stools, activeRow] = await Promise.all([
     prisma.feeding.findMany({
       where: { startedAt: { startsWith: date } },
       orderBy: { startedAt: "desc" },
@@ -50,8 +50,6 @@ export async function GET(request: NextRequest) {
       where: { time: { startsWith: date } },
       orderBy: { time: "desc" },
     }),
-    // 照片按上传顺序展示
-    prisma.photo.findMany({ where: { date }, orderBy: { createdAt: "asc" } }),
     prisma.activeFeeding.findUnique({ where: { id: 1 } }),
   ]);
 
@@ -74,12 +72,6 @@ export async function GET(request: NextRequest) {
     feedings,
     bottles,
     stools,
-    photos: photos.map((p) => ({
-      id: p.id,
-      date: p.date,
-      note: p.note,
-      mime: p.mime,
-    })),
     active: activeRow
       ? activeState(activeRow)
       : {

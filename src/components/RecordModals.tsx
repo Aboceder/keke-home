@@ -3,7 +3,7 @@
 import { api, nowInputValue } from "@/lib/client";
 import type { BottleRecord, FeedingRecord, Side, StoolRecord } from "@/lib/types";
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
-import { Baby, Camera, Check, Milk, Pencil, Toilet, Upload, X } from "lucide-react";
+import { Baby, Check, Milk, Pencil, Toilet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SelectDropdown } from "@/components/SelectDropdown";
 
@@ -416,87 +416,3 @@ export function ManualFeedingModal({
   );
 }
 
-/* ---------------- 上传照片 ---------------- */
-
-export function PhotoUploadModal({
-  today,
-  onClose,
-  onSaved,
-}: CommonProps & { today: string }) {
-  const [date, setDate] = useState(today);
-  const [files, setFiles] = useState<File[]>([]);
-  const [notes, setNotes] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  function pickFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? []);
-    setFiles(picked);
-    setNotes(picked.map(() => ""));
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const form = new FormData();
-      form.set("date", date);
-      for (const f of files) form.append("files", f);
-      for (const n of notes) form.append("notes", n);
-      await api("/api/photos", { method: "POST", body: form });
-      await onSaved();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "上传失败");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal title="上传照片" icon={<Camera className="size-5" />} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-2">
-        <Field legend="照片日期">
-          <input
-            type="date"
-            className="input w-full"
-            value={date}
-            max={today}
-            onChange={(e) => setDate(e.target.value)}
-            required
-          />
-        </Field>
-        <Field legend="选择照片" hint="可多选，每张单独填备注">
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic"
-            multiple
-            className="file-input w-full"
-            onChange={pickFiles}
-          />
-        </Field>
-        {files.map((f, i) => (
-          <Field key={`${f.name}-${i}`} legend={`备注（${f.name}）`}>
-            <input
-              type="text"
-              className="input w-full"
-              value={notes[i]}
-              onChange={(e) =>
-                setNotes((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))
-              }
-              placeholder="可为空"
-            />
-          </Field>
-        ))}
-        <FormError message={error} />
-        <FormActions
-          onClose={onClose}
-          busy={busy}
-          confirmLabel={files.length > 0 ? `上传 ${files.length} 张` : "上传"}
-          confirmIcon={<Upload className="size-4" />}
-        />
-      </form>
-    </Modal>
-  );
-}

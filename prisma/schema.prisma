@@ -42,19 +42,6 @@ model Stool {
   updatedAt    DateTime @updatedAt
 }
 
-model Photo {
-  id        Int      @id @default(autoincrement())
-  date      String // 照片日期 "YYYY-MM-DD"
-  note      String?
-  file      String // 原图文件名（data/uploads 下）
-  thumb     String // 缩略图文件名（webp）
-  mime      String // 原图 MIME 类型
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([date])
-}
-
 // 全局唯一的一条进行中母乳记录，id 恒为 1
 model ActiveFeeding {
   id                   Int      @id @default(1)

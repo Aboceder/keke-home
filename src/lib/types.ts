@@ -38,13 +38,6 @@ export interface StoolRecord {
   note: string | null;
 }
 
-export interface PhotoRecord {
-  id: number;
-  date: string;
-  note: string | null;
-  mime: string;
-}
-
 export interface DayStats {
   breastCount: number;
   breastSeconds: number;
@@ -61,7 +54,6 @@ export interface DayData {
   feedings: FeedingRecord[];
   bottles: BottleRecord[];
   stools: StoolRecord[];
-  photos: PhotoRecord[];
   active: ActiveState;
 }
 
