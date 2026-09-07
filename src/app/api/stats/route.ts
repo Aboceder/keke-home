@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 interface DayAgg {
   breastSeconds: number;
   bottleMl: number;
+  formulaMl: number;
+  breastBottleMl: number;
   stoolCount: number;
 }
 
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.bottle.findMany({
       where: { time: { gte: `${startDate} 00:00` } },
-      select: { time: true, amountMl: true },
+      select: { time: true, amountMl: true, type: true },
     }),
     prisma.stool.findMany({
       where: { time: { gte: `${startDate} 00:00` } },
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
   const get = (d: string): DayAgg => {
     let row = map.get(d);
     if (!row) {
-      row = { breastSeconds: 0, bottleMl: 0, stoolCount: 0 };
+      row = { breastSeconds: 0, bottleMl: 0, formulaMl: 0, breastBottleMl: 0, stoolCount: 0 };
       map.set(d, row);
     }
     return row;
@@ -48,6 +50,8 @@ export async function GET(request: NextRequest) {
   for (const b of bottles) {
     const row = get(b.time.slice(0, 10));
     row.bottleMl += b.amountMl;
+    if (b.type === "母乳") row.breastBottleMl += b.amountMl;
+    else row.formulaMl += b.amountMl;
   }
   for (const s of stools) {
     const row = get(s.time.slice(0, 10));
@@ -62,6 +66,8 @@ export async function GET(request: NextRequest) {
       date,
       breastSeconds: row?.breastSeconds ?? 0,
       bottleMl: row?.bottleMl ?? 0,
+      formulaMl: row?.formulaMl ?? 0,
+      breastBottleMl: row?.breastBottleMl ?? 0,
       stoolCount: row?.stoolCount ?? 0,
     });
   }

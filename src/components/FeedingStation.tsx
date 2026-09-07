@@ -272,7 +272,10 @@ export function FeedingStation() {
   type Entry = { kind: "breast" | "bottle" | "stool"; time: string; node: React.ReactNode };
   const entries: Entry[] = [];
   for (const f of data.feedings) {
-    const total = (f.leftSeconds ?? 0) + (f.rightSeconds ?? 0);
+    const sides = [
+      f.leftSeconds != null ? `左 ${fmtDuration(f.leftSeconds)}` : null,
+      f.rightSeconds != null ? `右 ${fmtDuration(f.rightSeconds)}` : null,
+    ].filter(Boolean);
     entries.push({
       kind: "breast",
       time: f.startedAt,
@@ -283,7 +286,7 @@ export function FeedingStation() {
           icon={<Baby className="size-3" />}
           badge="母乳"
           badgeClass="badge-primary"
-          title={`共 ${fmtDuration(total)}`}
+          title={sides.join(" · ") || fmtDuration((f.leftSeconds ?? 0) + (f.rightSeconds ?? 0))}
           note={f.note}
           onEdit={() => setModal({ type: "editFeeding", id: f.id })}
           onDelete={() =>
@@ -308,8 +311,8 @@ export function FeedingStation() {
           icon={<Milk className="size-3" />}
           badge="奶瓶"
           badgeClass="badge-secondary"
-          title={`${b.amountMl}ml${b.note ? `·${b.note}` : ""}`}
-          note={null}
+          title={`${b.amountMl}ml·${b.type}`}
+          note={b.note}
           onEdit={() => setModal({ type: "editBottle", id: b.id })}
           onDelete={() =>
             setConfirmDelete({ kind: "bottle", id: b.id, label: `奶瓶记录（${b.time.slice(11)}，${b.amountMl} 毫升）` })

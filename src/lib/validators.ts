@@ -34,10 +34,11 @@ export async function validateFeeding(body: {
   };
 }
 
-/** 奶瓶记录：时间 + 奶量毫升 */
+/** 奶瓶记录：时间 + 奶量毫升 + 类型（奶粉/母乳，默认奶粉） */
 export async function validateBottle(body: {
   time?: unknown;
   amountMl?: unknown;
+  type?: unknown;
   note?: unknown;
 }) {
   const time = normalizeDt(body.time);
@@ -45,9 +46,10 @@ export async function validateBottle(body: {
   if (isFutureDt(time)) return { error: "不能填写未来的时间" };
   const amountMl = parseMl(body.amountMl);
   if (amountMl == null) return { error: "奶量必须为大于 0 的整数毫升" };
+  const type = body.type === "母乳" ? "母乳" : "奶粉";
   const note =
     typeof body.note === "string" && body.note.trim() ? body.note.trim().slice(0, 500) : null;
-  return { data: { time, amountMl, note } };
+  return { data: { time, amountMl, type, note } };
 }
 
 const TEXTURES = ["稀", "软", "成形", "干硬", "其他"];

@@ -24,6 +24,7 @@ model Bottle {
   id        Int      @id @default(autoincrement())
   time      String // 喂奶时间 "YYYY-MM-DD HH:mm"
   amountMl  Int // 奶量（毫升）
+  type      String   @default("奶粉") // 奶粉 / 母乳
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

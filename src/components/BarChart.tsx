@@ -1,42 +1,43 @@
 "use client";
 
-interface Bar {
-  label: string;
-  value: number;
+export interface ChartSeries {
+  name: string;
+  colorVar: string;
+  values: number[];
 }
 
-/** 轻量 SVG 柱状图（无第三方库）：带横纵坐标、悬停显示数值 */
+/** 轻量 SVG 柱状图（无第三方库）：支持多系列堆叠、横纵坐标、悬停显示数值 */
 export function BarChart({
-  bars,
-  colorVar,
+  labels,
+  series,
   format,
 }: {
-  bars: Bar[];
-  colorVar: string;
+  labels: string[];
+  series: ChartSeries[];
   format: (value: number) => string;
 }) {
   const W = 320;
   const H = 180;
-  const marginLeft = 40; // Y 轴标签区
-  const marginBottom = 22; // X 轴标签区
+  const marginLeft = 40;
+  const marginBottom = 22;
   const top = 10;
 
   const plotW = W - marginLeft;
   const plotH = H - top - marginBottom;
   const baseline = top + plotH;
 
-  const max = Math.max(1, ...bars.map((b) => b.value));
-  const slot = plotW / bars.length;
+  const totals = labels.map((_, i) => series.reduce((s, sr) => s + (sr.values[i] ?? 0), 0));
+  const max = Math.max(1, ...totals);
+  const slot = plotW / labels.length;
   const barW = Math.max(2, slot * 0.62);
 
-  // X 轴标签：最多约 7 个，首尾必标
-  const xStep = Math.max(1, Math.ceil(bars.length / 7));
+  const xStep = Math.max(1, Math.ceil(labels.length / 7));
   const labelIdx = new Set<number>();
-  bars.forEach((_, i) => {
+  labels.forEach((_, i) => {
     if (i % xStep === 0) labelIdx.add(i);
   });
   labelIdx.add(0);
-  labelIdx.add(bars.length - 1);
+  labelIdx.add(labels.length - 1);
 
   const ticks = [0, 0.25, 0.5, 0.75, 1];
 
@@ -63,24 +64,41 @@ export function BarChart({
         );
       })}
 
-      {/* 柱子 */}
-      {bars.map((b, i) => {
-        const h = b.value === 0 ? 0 : Math.max(2, (b.value / max) * plotH);
+      {/* 堆叠柱 */}
+      {labels.map((_, i) => {
+        const total = totals[i];
         const x = marginLeft + i * slot + (slot - barW) / 2;
-        const y = baseline - h;
+        let acc = 0;
+        const segments = series.map((sr) => {
+          const v = sr.values[i] ?? 0;
+          const h = v === 0 ? 0 : Math.max(2, (v / max) * plotH);
+          const y = baseline - acc - h;
+          acc += h;
+          return { colorVar: sr.colorVar, y, h };
+        });
+        const fullH = total === 0 ? 0 : Math.max((total / max) * plotH, 2);
+        const tip = series
+          .map((sr) => `${sr.name} ${format(sr.values[i] ?? 0)}`)
+          .join("，");
+
         return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={barW}
-            height={h}
-            rx={2}
-            style={{ fill: colorVar }}
-            opacity={0.92}
-          >
-            <title>{`${b.label}：${format(b.value)}`}</title>
-          </rect>
+          <g key={i}>
+            {segments.map((seg, si) => (
+              <rect
+                key={si}
+                x={x}
+                y={seg.y}
+                width={barW}
+                height={seg.h}
+                style={{ fill: seg.colorVar }}
+                opacity={0.92}
+              />
+            ))}
+            {/* 透明覆盖层用于整根柱子的悬停提示 */}
+            <rect x={x} y={baseline - fullH} width={barW} height={fullH} fill="transparent">
+              <title>{`${labels[i]}：${tip}`}</title>
+            </rect>
+          </g>
         );
       })}
 
@@ -97,7 +115,7 @@ export function BarChart({
             fontSize={8}
             opacity={0.6}
           >
-            {bars[i].label}
+            {labels[i]}
           </text>
         );
       })}

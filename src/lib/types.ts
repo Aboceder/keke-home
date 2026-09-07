@@ -24,6 +24,7 @@ export interface BottleRecord {
   id: number;
   time: string;
   amountMl: number;
+  type: string;
   note: string | null;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart } from "@/components/BarChart";
+import type { ChartSeries } from "@/components/BarChart";
 import { api, fmtDurationMin } from "@/lib/client";
 import { ArrowLeft, Baby, Milk, Toilet } from "lucide-react";
 import Link from "next/link";
@@ -10,6 +11,8 @@ interface DayStat {
   date: string;
   breastSeconds: number;
   bottleMl: number;
+  formulaMl: number;
+  breastBottleMl: number;
   stoolCount: number;
 }
 
@@ -41,6 +44,20 @@ export default function StatsPage() {
   const breastTotalSeconds = data ? data.reduce((s, d) => s + d.breastSeconds, 0) : 0;
   const bottleTotalMl = data ? data.reduce((s, d) => s + d.bottleMl, 0) : 0;
   const stoolTotal = data ? data.reduce((s, d) => s + d.stoolCount, 0) : 0;
+
+  const labels = data ? data.map((d) => fmtDate(d.date)) : [];
+  const breastSeries: ChartSeries[] = data
+    ? [{ name: "母乳", colorVar: "var(--color-primary)", values: data.map((d) => d.breastSeconds) }]
+    : [];
+  const bottleSeries: ChartSeries[] = data
+    ? [
+        { name: "奶粉", colorVar: "var(--color-secondary)", values: data.map((d) => d.formulaMl) },
+        { name: "母乳", colorVar: "var(--color-primary)", values: data.map((d) => d.breastBottleMl) },
+      ]
+    : [];
+  const stoolSeries: ChartSeries[] = data
+    ? [{ name: "便便", colorVar: "var(--color-accent)", values: data.map((d) => d.stoolCount) }]
+    : [];
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-10 pt-4">
@@ -91,24 +108,34 @@ export default function StatsPage() {
               <span className="text-xs opacity-60">合计 {fmtDurationMin(breastTotalSeconds)}</span>
             </div>
             <BarChart
-              bars={data.map((d) => ({ label: fmtDate(d.date), value: d.breastSeconds }))}
-              colorVar="var(--color-primary)"
+              labels={labels}
+              series={breastSeries}
               format={(v) => fmtDurationMin(v)}
             />
           </section>
 
           {/* 奶瓶喂养量 */}
           <section className="rounded-box bg-base-200 p-3">
-            <div className="mb-1 flex items-center justify-between px-1">
-              <div className="flex items-center gap-1.5 text-sm font-semibold">
+            <div className="mb-1 flex items-center justify-between gap-2 px-1">
+              <div className="flex shrink-0 items-center gap-1.5 text-sm font-semibold">
                 <Milk className="size-4 opacity-80" />
                 奶瓶喂养量
               </div>
-              <span className="text-xs opacity-60">合计 {bottleTotalMl} ml</span>
+              <div className="flex min-w-0 items-center gap-2 text-xs opacity-70">
+                <span className="flex shrink-0 items-center gap-1">
+                  <span className="size-2 rounded-full" style={{ background: "var(--color-secondary)" }} />
+                  奶粉
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <span className="size-2 rounded-full" style={{ background: "var(--color-primary)" }} />
+                  母乳
+                </span>
+                <span className="shrink-0 opacity-90">合计 {bottleTotalMl} ml</span>
+              </div>
             </div>
             <BarChart
-              bars={data.map((d) => ({ label: fmtDate(d.date), value: d.bottleMl }))}
-              colorVar="var(--color-secondary)"
+              labels={labels}
+              series={bottleSeries}
               format={(v) => `${v} ml`}
             />
           </section>
@@ -123,8 +150,8 @@ export default function StatsPage() {
               <span className="text-xs opacity-60">合计 {stoolTotal} 次</span>
             </div>
             <BarChart
-              bars={data.map((d) => ({ label: fmtDate(d.date), value: d.stoolCount }))}
-              colorVar="var(--color-accent)"
+              labels={labels}
+              series={stoolSeries}
               format={(v) => `${v} 次`}
             />
           </section>

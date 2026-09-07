@@ -5,6 +5,7 @@ import type { BottleRecord, FeedingRecord, Side, StoolRecord } from "@/lib/types
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
 import { Baby, Camera, Check, Milk, Pencil, Toilet, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SelectDropdown } from "@/components/SelectDropdown";
 
 interface CommonProps {
   onClose: () => void;
@@ -151,6 +152,7 @@ export function BottleModal({
 }: CommonProps & { initial?: BottleRecord }) {
   const [time, setTime] = useState(initial ? initial.time.replace(" ", "T") : nowInputValue());
   const [amount, setAmount] = useState(initial ? String(initial.amountMl) : "");
+  const [type, setType] = useState(initial?.type ?? "奶粉");
   const [note, setNote] = useState(initial?.note ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -160,7 +162,7 @@ export function BottleModal({
     setBusy(true);
     setError(null);
     try {
-      const body = { time: time.replace("T", " "), amountMl: Number(amount), note };
+      const body = { time: time.replace("T", " "), amountMl: Number(amount), type, note };
       await api(initial ? `/api/bottles/${initial.id}` : "/api/bottles", {
         method: initial ? "PATCH" : "POST",
         body: JSON.stringify(body),
@@ -197,6 +199,9 @@ export function BottleModal({
             placeholder="例如 120"
             required
           />
+        </Field>
+        <Field legend="奶的类型">
+          <SelectDropdown value={type} options={["奶粉", "母乳"]} emptyLabel="请选择" onSelect={setType} />
         </Field>
         <Field legend="备注（可选）">
           <textarea
@@ -270,14 +275,12 @@ export function StoolModal({
           />
         </Field>
         <Field legend="性状（可选）">
-          <select className="select w-full" value={texture} onChange={(e) => setTexture(e.target.value)}>
-            <option value="">不记录</option>
-            {STOOL_TEXTURES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          <SelectDropdown
+            value={texture}
+            options={["不记录", ...STOOL_TEXTURES]}
+            emptyLabel="不记录"
+            onSelect={(v) => setTexture(v === "不记录" ? "" : v)}
+          />
         </Field>
         {texture === "其他" && (
           <Field legend="性状补充说明（必填）">
@@ -291,14 +294,12 @@ export function StoolModal({
           </Field>
         )}
         <Field legend="颜色（可选）">
-          <select className="select w-full" value={color} onChange={(e) => setColor(e.target.value)}>
-            <option value="">不记录</option>
-            {STOOL_COLORS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <SelectDropdown
+            value={color}
+            options={["不记录", ...STOOL_COLORS]}
+            emptyLabel="不记录"
+            onSelect={(v) => setColor(v === "不记录" ? "" : v)}
+          />
         </Field>
         {color === "其他" && (
           <Field legend="颜色补充说明（必填）">
