@@ -7,6 +7,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Baby,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   Milk,
@@ -15,6 +16,7 @@ import {
   Trash2,
   Utensils,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Filter = "all" | "breast" | "bottle" | "stool";
@@ -342,15 +344,20 @@ export function FeedingStation() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
-      {/* 顶栏：logo + 标题 */}
-      <div className="mb-3 flex items-center gap-2.5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/duofu.gif"
-          alt="可可"
-          className="size-10 rounded-xl shadow-sm"
-        />
-        <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
+      {/* 顶栏：logo + 标题 + 统计入口 */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/duofu.gif"
+            alt="可可"
+            className="size-10 rounded-xl shadow-sm"
+          />
+          <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
+        </div>
+        <Link href="/stats" className="btn btn-ghost btn-square btn-sm" aria-label="统计">
+          <BarChart3 className="size-5" />
+        </Link>
       </div>
 
       {/* 日期导航 */}

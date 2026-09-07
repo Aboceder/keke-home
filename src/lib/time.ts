@@ -30,6 +30,20 @@ export function nowDate(): string {
   return nowDt().slice(0, 10);
 }
 
+const dateFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** 当前北京时间的 N 天前的日期 "YYYY-MM-DD" */
+export function dateDaysAgo(daysAgo: number): string {
+  const p = dateFmt.formatToParts(new Date(Date.now() - daysAgo * 86400000));
+  const get = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 /** 标准化并校验 "YYYY-MM-DD HH:mm"（datetime-local 值为 "YYYY-MM-DDTHH:mm"） */
 export function normalizeDt(v: unknown): string | null {
   if (typeof v !== "string") return null;
