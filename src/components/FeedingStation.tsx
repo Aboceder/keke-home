@@ -56,19 +56,21 @@ function ActiveBar({
 
   if (active.activeSide) {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-40 p-3">
-        <div role="alert" className="alert bg-primary text-primary-content mx-auto max-w-xl rounded-2xl shadow-lg">
-          <div className="flex items-center gap-1.5">
-            <span className="breathing-dot size-3 rounded-full bg-current" />
-            <Baby className="size-5" />
+      <div className="fixed inset-x-0 bottom-0 z-40 pb-3.5">
+        <div className="mx-auto max-w-xl px-4">
+          <div role="alert" className="alert bg-primary text-primary-content rounded-2xl shadow-lg">
+            <div className="flex items-center gap-1.5">
+              <span className="breathing-dot size-3 rounded-full bg-current" />
+              <Baby className="size-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
+              <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
+            </div>
+            <button className="btn" disabled={busy} onClick={() => onAction("endSide")}>
+              结束本侧
+            </button>
           </div>
-          <div className="flex-1">
-            <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
-            <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
-          </div>
-          <button className="btn" disabled={busy} onClick={() => onAction("endSide")}>
-            结束本侧
-          </button>
         </div>
       </div>
     );
@@ -89,47 +91,49 @@ function ActiveBar({
       : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 p-3">
-      <div role="alert" className="alert alert-warning mx-auto flex-wrap max-w-xl rounded-2xl shadow-lg">
-        <AlertTriangle className="size-6 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">
-            {bothDone
-              ? `已喂 ${fmtDuration(doneTotal)}`
-              : doneSide && sideDoneSeconds != null
-                ? `${SIDE_NAME[doneSide]}已喂 ${fmtDuration(sideDoneSeconds)}`
-                : "一侧已喂完"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {bothDone ? (
-            <>
-              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "left")}>
-                继续左
+    <div className="fixed inset-x-0 bottom-0 z-40 pb-3.5">
+      <div className="mx-auto max-w-xl px-4">
+        <div role="alert" className="alert alert-warning flex-wrap rounded-2xl shadow-lg">
+          <AlertTriangle className="size-6 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold">
+              {bothDone
+                ? `已喂 ${fmtDuration(doneTotal)}`
+                : doneSide && sideDoneSeconds != null
+                  ? `${SIDE_NAME[doneSide]}已喂 ${fmtDuration(sideDoneSeconds)}`
+                  : "一侧已喂完"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {bothDone ? (
+              <>
+                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "left")}>
+                  继续左
+                </button>
+                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "right")}>
+                  继续右
+                </button>
+              </>
+            ) : (
+              doneSide && (
+                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
+                  继续
+                </button>
+              )
+            )}
+            {switchTarget && (
+              <button
+                className="btn btn-sm"
+                disabled={busy}
+                onClick={() => onAction("switch", switchTarget)}
+              >
+                切换{SIDE_NAME[switchTarget]}
               </button>
-              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "right")}>
-                继续右
-              </button>
-            </>
-          ) : (
-            doneSide && (
-              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
-                继续
-              </button>
-            )
-          )}
-          {switchTarget && (
-            <button
-              className="btn btn-sm"
-              disabled={busy}
-              onClick={() => onAction("switch", switchTarget)}
-            >
-              切换{SIDE_NAME[switchTarget]}
+            )}
+            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onAction("finish")}>
+              结束
             </button>
-          )}
-          <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onAction("finish")}>
-            结束
-          </button>
+          </div>
         </div>
       </div>
     </div>
