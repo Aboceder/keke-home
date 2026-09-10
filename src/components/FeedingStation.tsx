@@ -35,22 +35,22 @@ function shiftDate(date: string, days: number): string {
 function ActiveBar({
   active,
   nowMs,
-  receivedMs,
+  anchor,
   onAction,
   busy,
 }: {
   active: ActiveState;
   nowMs: number;
-  receivedMs: number; // 最近一次拿到 active 数据的时刻（客户端钟）
+  anchor: { startedAt: string; elapsed: number; atMs: number } | null;
   onAction: (action: "endSide" | "switch" | "finish", side?: Side) => void;
   busy: boolean;
 }) {
-  // 服务器返回 elapsed（服务器钟算的） + 本地增量。
-  // 不用「设备当前时间 - 服务器开始时间」：设备与服务器时钟有偏差时会算出负数/错值
-  const liveElapsed = active.activeSide
-    ? Math.max(0, active.elapsed) +
-      (receivedMs > 0 ? Math.max(0, Math.floor((nowMs - receivedMs) / 1000)) : 0)
-    : 0;
+  // 锚点 = 换侧时的服务器秒数 + 本地钟增量；同侧期间连续走秒，
+  // 不用「设备当前时间 - 服务器开始时间」：设备与服务器时钟偏差会导致算出负数
+  const liveElapsed =
+    active.activeSide && anchor
+      ? Math.max(0, anchor.elapsed + Math.floor((nowMs - anchor.atMs) / 1000))
+      : 0;
 
   const doneTotal = (active.leftSeconds ?? 0) + (active.rightSeconds ?? 0);
 
@@ -203,10 +203,21 @@ export function FeedingStation() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
-  // 记录数据到达时刻，作为计时走秒的锚点（免疫设备与服务器时钟偏差）
-  const [receivedMs, setReceivedMs] = useState(0);
+  // 计时锚点：同一侧计时期间保持不变（本地连续走秒），换侧（activeSideStartedAt 变化）才重置；
+  // 免疫设备与服务器时钟偏差，也避免轮询重置导致的显示卡顿
+  const [anchor, setAnchor] = useState<{ startedAt: string; elapsed: number; atMs: number } | null>(null);
   const applyData = useCallback((d: DayData) => {
-    setReceivedMs(Date.now());
+    const a = d.active;
+    const startedAt = a.activeSideStartedAt;
+    if (a.exists && a.activeSide && startedAt) {
+      setAnchor((prev) =>
+        prev && prev.startedAt === startedAt
+          ? prev
+          : { startedAt, elapsed: a.elapsed, atMs: Date.now() },
+      );
+    } else {
+      setAnchor(null);
+    }
     setData(d);
   }, []);
 
@@ -504,7 +515,7 @@ export function FeedingStation() {
 
       {/* 常驻喂养条 */}
       {active?.exists && (
-        <ActiveBar active={active} nowMs={nowMs} receivedMs={receivedMs} onAction={handleActive} busy={busy} />
+        <ActiveBar active={active} nowMs={nowMs} anchor={anchor} onAction={handleActive} busy={busy} />
       )}
 
       {/* 错误提示 */}
