@@ -52,7 +52,7 @@ async function checkFeedingInterval(): Promise<void> {
 
   const hours = Math.floor(ms / 3600000);
   lastIntervalAlertAt = Date.now();
-  await barkPush("喂养提醒", `可可已经 ${hours} 小时没有吃奶了，该喂啦～`);
+  await barkPush("喂养提醒", `可可已经 ${hours} 小时没有吃奶了，该喂啦～`, "timeSensitive");
 }
 
 async function checkForgetTimer(): Promise<void> {
@@ -70,7 +70,7 @@ async function checkForgetTimer(): Promise<void> {
     const oldest = forgetAlerted.values().next().value;
     if (oldest != null) forgetAlerted.delete(oldest);
   }
-  await barkPush("计时提醒", `母乳计时已经进行超过 ${FORGET_ALERT_MINUTES} 分钟，是不是忘记结束了？`);
+  await barkPush("计时提醒", `母乳计时已经进行超过 ${FORGET_ALERT_MINUTES} 分钟，是不是忘记结束了？`, "timeSensitive");
 }
 
 function checkReminders(): void {
