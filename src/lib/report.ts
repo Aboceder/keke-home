@@ -71,11 +71,16 @@ function buildPrompt(
   curLabel: string,
   prevLabel: string,
 ): string {
+  const curMin = Math.round(cur.breastSeconds / 60);
+  const prevMin = Math.round(prev.breastSeconds / 60);
   return [
-    `以下是可可（婴儿）的喂养记录对比，请写 2~3 句中文总结：先说本期概况，再对比${prevLabel}的变化，最后给一句贴心建议。`,
-    `${curLabel}：${linesFor(cur)}。`,
-    `${prevLabel}：${linesFor(prev)}。`,
-    "数字保持准确，不要编造数据。",
+    `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），便便 ${cur.stoolCount} 次。`,
+    `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），便便 ${prev.stoolCount} 次。`,
+    `写 2~3 句中文，给家人看的。要求：`,
+    `1. 先算好变化（次数/时长/奶量的增减），用一句概括最值得注意的变化，变化大时直接说"明显变多/变少"，并提醒是否需要留意；`,
+    `2. 禁止逐项罗列数字，禁止出现括号补充说明；正文里最多出现 2 个具体数字；`,
+    `3. 像家人说话一样自然温暖，最后一句给实用建议（如有异常信号优先提醒观察精神状态、尿量等）。`,
+    `示例风格："可可今天吃得比昨天少了不少，奶量和亲喂时长都减半了，便便也少了。小婴儿偶尔一天吃得少不用太紧张，先观察精神状态和小便次数，如果明天还是这么少，或者精神不好，就要上心一点了。"`,
   ].join("\n");
 }
 
