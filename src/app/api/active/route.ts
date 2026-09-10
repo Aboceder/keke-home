@@ -51,7 +51,8 @@ export async function GET() {
 /**
  * action:
  * - start  {side}            开始喂奶（某侧开始计时）
- * - endSide                    结束本侧（进入「切换/结束」待选择状态）
+ * - endSide                    结束本侧（进入「继续/切换/结束」待选择状态）
+ * - resume {side}            反悔：继续喂已结束的那侧（时长累计）
  * - switch {side}            切换到另一侧并计时
  * - finish                     结束喂奶，保存整条母乳记录
  */
@@ -92,9 +93,21 @@ export async function POST(request: NextRequest) {
     );
     const data =
       row.activeSide === "left"
-        ? { leftSeconds: secs, leftDone: true, activeSide: null, activeSideStartedAt: null }
-        : { rightSeconds: secs, rightDone: true, activeSide: null, activeSideStartedAt: null };
+        ? { leftSeconds: (row.leftSeconds ?? 0) + secs, leftDone: true, activeSide: null, activeSideStartedAt: null }
+        : { rightSeconds: (row.rightSeconds ?? 0) + secs, rightDone: true, activeSide: null, activeSideStartedAt: null };
     await prisma.activeFeeding.update({ where: { id: 1 }, data });
+    return Response.json({ ok: true });
+  }
+
+  if (body.action === "resume") {
+    if (!side || !SIDES.includes(side)) return err("side 必须为 left 或 right");
+    if (row.activeSide) return err("另一侧正在计时，请先结束本侧");
+    const done = side === "left" ? row.leftDone : row.rightDone;
+    if (!done) return err("该侧尚未计时过");
+    await prisma.activeFeeding.update({
+      where: { id: 1 },
+      data: { activeSide: side, activeSideStartedAt: new Date() },
+    });
     return Response.json({ ok: true });
   }
 
@@ -119,8 +132,9 @@ export async function POST(request: NextRequest) {
         0,
         Math.floor((Date.now() - row.activeSideStartedAt.getTime()) / 1000),
       );
-      if (row.activeSide === "left") leftSeconds = secs;
-      else rightSeconds = secs;
+      // resume 后再次结束：在已累计时长上叠加本次
+      if (row.activeSide === "left") leftSeconds = (row.leftSeconds ?? 0) + secs;
+      else rightSeconds = (row.rightSeconds ?? 0) + secs;
     }
     if (!leftSeconds && !rightSeconds) {
       return err("至少要有一侧的时长才能保存");

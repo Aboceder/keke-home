@@ -42,7 +42,7 @@ function ActiveBar({
   active: ActiveState;
   nowMs: number;
   anchor: { startedAt: string; elapsed: number; atMs: number } | null;
-  onAction: (action: "endSide" | "switch" | "finish", side?: Side) => void;
+  onAction: (action: "endSide" | "switch" | "resume" | "finish", side?: Side) => void;
   busy: boolean;
 }) {
   // 锚点 = 换侧时的服务器秒数 + 本地钟增量；同侧期间连续走秒，
@@ -75,8 +75,8 @@ function ActiveBar({
   }
 
   // 有一侧已结束：待处理提醒（所有设备同步显示）
-  // 切换目标 = 尚未计时过的一侧（可能两侧都已喂，此时只保留「结束喂奶」）
   const doneSide = active.leftDone ? "left" : active.rightDone ? "right" : null;
+  const bothDone = active.leftDone && active.rightDone;
   const sideDoneSeconds = doneSide
     ? doneSide === "left"
       ? active.leftSeconds
@@ -93,13 +93,20 @@ function ActiveBar({
       <div role="alert" className="alert alert-warning mx-auto flex-wrap max-w-xl rounded-2xl shadow-lg">
         <AlertTriangle className="size-6 shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">一侧已喂完，切换另一侧还是结束喂奶？</p>
-          <p className="font-digits text-sm opacity-80">
-            已喂 {fmtDuration(doneTotal)}
-            {sideDoneSeconds != null && `（本侧 ${fmtDuration(sideDoneSeconds)}）`}
+          <p className="text-sm font-bold">
+            {bothDone
+              ? `已喂 ${fmtDuration(doneTotal)}`
+              : doneSide && sideDoneSeconds != null
+                ? `${SIDE_NAME[doneSide]}已喂 ${fmtDuration(sideDoneSeconds)}`
+                : "一侧已喂完"}
           </p>
         </div>
         <div className="flex gap-2">
+          {!bothDone && doneSide && (
+            <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
+              继续喂
+            </button>
+          )}
           {switchTarget && (
             <button
               className="btn btn-sm"
@@ -267,7 +274,7 @@ export function FeedingStation() {
     }
   }
 
-  function handleActive(action: "endSide" | "switch" | "finish", side?: Side) {
+  function handleActive(action: "endSide" | "switch" | "resume" | "finish", side?: Side) {
     run(() => api("/api/active", { method: "POST", body: JSON.stringify({ action, side }) }));
   }
 
