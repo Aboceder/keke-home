@@ -102,10 +102,21 @@ function ActiveBar({
           </p>
         </div>
         <div className="flex gap-2">
-          {!bothDone && doneSide && (
-            <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
-              继续
-            </button>
+          {bothDone ? (
+            <>
+              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "left")}>
+                继续左
+              </button>
+              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "right")}>
+                继续右
+              </button>
+            </>
+          ) : (
+            doneSide && (
+              <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
+                继续
+              </button>
+            )
           )}
           {switchTarget && (
             <button
