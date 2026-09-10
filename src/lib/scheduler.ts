@@ -81,7 +81,7 @@ function checkReminders(): void {
 
 export function startScheduler(): void {
   if (!barkConfigured()) {
-    console.log("[scheduler] 未配置 BARK_URLS，定时任务跳过");
+    console.log("[scheduler] 未配置 BARK_KEYS，定时任务跳过");
     return;
   }
 
