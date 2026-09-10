@@ -35,18 +35,22 @@ function shiftDate(date: string, days: number): string {
 function ActiveBar({
   active,
   nowMs,
+  receivedMs,
   onAction,
   busy,
 }: {
   active: ActiveState;
   nowMs: number;
+  receivedMs: number; // 最近一次拿到 active 数据的时刻（客户端钟）
   onAction: (action: "endSide" | "switch" | "finish", side?: Side) => void;
   busy: boolean;
 }) {
-  const liveElapsed =
-    active.activeSide && active.activeSideStartedAt
-      ? Math.max(0, Math.floor((nowMs - Date.parse(active.activeSideStartedAt)) / 1000))
-      : 0;
+  // 服务器返回 elapsed（服务器钟算的） + 本地增量。
+  // 不用「设备当前时间 - 服务器开始时间」：设备与服务器时钟有偏差时会算出负数/错值
+  const liveElapsed = active.activeSide
+    ? Math.max(0, active.elapsed) +
+      (receivedMs > 0 ? Math.max(0, Math.floor((nowMs - receivedMs) / 1000)) : 0)
+    : 0;
 
   const doneTotal = (active.leftSeconds ?? 0) + (active.rightSeconds ?? 0);
 
@@ -199,13 +203,20 @@ export function FeedingStation() {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
+  // 记录数据到达时刻，作为计时走秒的锚点（免疫设备与服务器时钟偏差）
+  const [receivedMs, setReceivedMs] = useState(0);
+  const applyData = useCallback((d: DayData) => {
+    setReceivedMs(Date.now());
+    setData(d);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      setData(await api<DayData>(`/api/day?date=${date}`));
+      applyData(await api<DayData>(`/api/day?date=${date}`));
     } catch (err) {
       showError(err instanceof Error ? err.message : "加载失败");
     }
-  }, [date, showError]);
+  }, [date, applyData, showError]);
 
   // 自动同步：轮询（可见页每 2 秒）+ 计时本地走秒
   useEffect(() => {
@@ -214,7 +225,7 @@ export function FeedingStation() {
       if (document.visibilityState !== "visible") return;
       api<DayData>(`/api/day?date=${date}`)
         .then((d) => {
-          if (alive) setData(d);
+          if (alive) applyData(d);
         })
         .catch(() => {});
     };
@@ -224,7 +235,7 @@ export function FeedingStation() {
       alive = false;
       clearInterval(t);
     };
-  }, [date]);
+  }, [date, applyData]);
 
   useEffect(() => {
     const t = setInterval(() => setNowMs(Date.now()), 1000);
@@ -492,7 +503,9 @@ export function FeedingStation() {
       </section>
 
       {/* 常驻喂养条 */}
-      {active?.exists && <ActiveBar active={active} nowMs={nowMs} onAction={handleActive} busy={busy} />}
+      {active?.exists && (
+        <ActiveBar active={active} nowMs={nowMs} receivedMs={receivedMs} onAction={handleActive} busy={busy} />
+      )}
 
       {/* 错误提示 */}
       {toast && (
