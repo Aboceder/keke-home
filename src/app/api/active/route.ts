@@ -31,9 +31,14 @@ export async function GET() {
     };
     return Response.json(empty);
   }
+  // elapsed = 该侧总时长（含 resume 之前累计的）+ 本次正在计的秒数
+  const base =
+    row.activeSide === "left"
+      ? (row.leftSeconds ?? 0)
+      : (row.rightSeconds ?? 0);
   const elapsed =
     row.activeSide && row.activeSideStartedAt
-      ? Math.max(0, Math.floor((Date.now() - row.activeSideStartedAt.getTime()) / 1000))
+      ? base + Math.max(0, Math.floor((Date.now() - row.activeSideStartedAt.getTime()) / 1000))
       : 0;
   return Response.json({
     exists: true,

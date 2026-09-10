@@ -104,7 +104,7 @@ function ActiveBar({
         <div className="flex gap-2">
           {!bothDone && doneSide && (
             <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
-              继续喂
+              继续
             </button>
           )}
           {switchTarget && (
@@ -113,11 +113,11 @@ function ActiveBar({
               disabled={busy}
               onClick={() => onAction("switch", switchTarget)}
             >
-              切换到{SIDE_NAME[switchTarget]}
+              切换{SIDE_NAME[switchTarget]}
             </button>
           )}
           <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onAction("finish")}>
-            结束喂奶
+            结束
           </button>
         </div>
       </div>
