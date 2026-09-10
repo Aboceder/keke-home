@@ -60,7 +60,7 @@ function ActiveBar({
         <div role="alert" className="alert bg-primary text-primary-content mx-auto max-w-xl rounded-2xl shadow-lg">
           <div className="flex items-center gap-1.5">
             <span className="breathing-dot size-3 rounded-full bg-current" />
-            <Milk className="size-5" />
+            <Baby className="size-5" />
           </div>
           <div className="flex-1">
             <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
