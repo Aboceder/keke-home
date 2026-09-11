@@ -88,8 +88,8 @@ export function startScheduler(): void {
   // 实时提醒：每 5 分钟
   setInterval(checkReminders, CHECK_INTERVAL_MS);
 
-  // 每日日报 21:00（北京时间）
-  cron.schedule("0 21 * * *", () => {
+  // 每日日报 00:01（北京时间）：报告昨天的完整自然日
+  cron.schedule("1 0 * * *", () => {
     sendDailyReport().catch((err) => console.error("[scheduler] 日报失败:", err));
   }, { timezone: TZ });
 
@@ -98,5 +98,5 @@ export function startScheduler(): void {
     sendWeeklyReport().catch((err) => console.error("[scheduler] 周报失败:", err));
   }, { timezone: TZ });
 
-  console.log("[scheduler] 定时任务已启动：间隔/遗忘提醒(5min)、日报(21:00)、周报(周一09:00)");
+  console.log("[scheduler] 定时任务已启动：间隔/遗忘提醒(5min)、日报(00:01)、周报(周一09:00)");
 }
