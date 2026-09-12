@@ -1,0 +1,38 @@
+# Windows 机器自动部署（push 到 main 后自动 pull + build + start）
+#
+# 原理：这台机器注册为 GitHub self-hosted runner（主动连 GitHub，无需公网/端口映射），
+# push 触发 workflow，在 runner 上执行部署脚本。
+
+name: Deploy to Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 支持手动触发
+
+# 同一时间只跑一个部署，新的 push 排队，避免两个部署同时改文件
+concurrency:
+  group: deploy-windows
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Windows]
+    # 部署目录按实际路径改（默认 runner 在 C:\actions-runner）
+    defaults:
+      run:
+        working-directory: C:\deploy\keke-home
+        shell: cmd
+    steps:
+      - name: Pull
+        run: git pull origin main
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Restart app
+        # pm2 负责守护进程与开机自启；名称与 Windows 机器上注册的一致
+        run: pm2 restart keke-home || pm2 start npm --name keke-home -- start
