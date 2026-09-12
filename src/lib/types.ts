@@ -50,6 +50,7 @@ export interface DayStats {
 export interface DayData {
   today: string; // 当前北京日期，客户端判断「后一天」边界
   date: string;
+  ageDays: number | null; // 宝宝出生天数（未配置 DATE_OF_BRITH 为 null）
   stats: DayStats;
   feedings: FeedingRecord[];
   bottles: BottleRecord[];

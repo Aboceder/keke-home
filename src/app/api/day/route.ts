@@ -1,3 +1,4 @@
+import { ageDaysAt } from "@/lib/age";
 import { prisma } from "@/lib/prisma";
 import { nowDate } from "@/lib/time";
 import type { ActiveState, DayData } from "@/lib/types";
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
   const data: DayData = {
     today: nowDate(),
     date,
+    ageDays: ageDaysAt(nowDate()),
     stats: {
       breastCount: feedings.length,
       breastSeconds,

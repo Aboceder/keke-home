@@ -1,4 +1,5 @@
 // 日报/周报：数据聚合（程序算）→ AI 总结（可降级为模板）→ Bark 推送
+import { ageDaysAt, birthDate } from "@/lib/age";
 import { prisma } from "@/lib/prisma";
 import { dateDaysAgo } from "@/lib/time";
 import { aiConfigured, aiSummarize } from "@/lib/ai";
@@ -98,7 +99,14 @@ function buildPrompt(
   prev: RangeStats,
   curLabel: string,
   prevLabel: string,
+  endDate: string,
 ): string {
+  const birth = birthDate();
+  const ageDays = birth ? ageDaysAt(endDate) : null;
+  const ageLine =
+    birth && ageDays != null
+      ? `可可出生日期 ${birth}，到 ${endDate} 是出生第 ${ageDays} 天。请结合月龄阶段（如新生儿/满月/百天/半岁）判断这些数据是否正常，并让建议贴合月龄。`
+      : "";
   const curMin = Math.round(cur.breastSeconds / 60);
   const prevMin = Math.round(prev.breastSeconds / 60);
   const stoolDetail = (s: RangeStats) => {
@@ -107,10 +115,11 @@ function buildPrompt(
   };
   const others = [...cur.stoolOthers, ...prev.stoolOthers];
   return [
+    ageLine,
     `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），便便 ${cur.stoolCount} 次${stoolDetail(cur)}。`,
     `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），便便 ${prev.stoolCount} 次${stoolDetail(prev)}。`,
     others.length > 0 ? `便便的补充说明：${others.join("；")}。` : "",
-    `写 2~3 句中文，给家人看的。要求：`,
+    `${periodName === "周报" ? "写 4~6 句" : "写 3~5 句"}中文，给家人看的。要求：`,
     `1. 先算好变化（次数/时长/奶量/便便的增减），用一句概括最值得注意的变化，变化大时直接说"明显变多/变少"，并提醒是否需要留意；`,
     `2. 便便部分重点看性状和颜色：出现水样便、绿色便、黑色便、干硬等异常要提醒观察，正常则不用展开说；`,
     `3. 禁止逐项罗列数字，禁止出现括号补充说明；正文里最多出现 3 个具体数字；`,
@@ -126,9 +135,10 @@ async function summarizeWithFallback(
   prev: RangeStats,
   curLabel: string,
   prevLabel: string,
+  endDate: string,
 ): Promise<string> {
   if (aiConfigured()) {
-    const text = await aiSummarize(buildPrompt(periodName, cur, prev, curLabel, prevLabel));
+    const text = await aiSummarize(buildPrompt(periodName, cur, prev, curLabel, prevLabel, endDate));
     if (text) return text;
   }
   return [
@@ -155,6 +165,7 @@ export async function sendDailyReport(): Promise<void> {
     prev,
     `昨天（${day}）`,
     `前天（${prevDay}）`,
+    day,
   );
   await barkPush(`可可日报 ${day.slice(5).replace("-", "/")}`, `${linesFor(cur)}。\n${summary}`);
 }
@@ -179,6 +190,7 @@ export async function sendWeeklyReport(): Promise<void> {
     prev,
     `上周（${start} 至 ${end}）`,
     "上上周",
+    end,
   );
   await barkPush(
     `可可周报 ${start.slice(5).replace("-", "/")}~${end.slice(5).replace("-", "/")}`,

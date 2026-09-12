@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 export interface ChartSeries {
   name: string;
@@ -31,6 +31,7 @@ function Bars({
   barW: number;
 }) {
   const [grow, setGrow] = useState(false);
+  const uid = useId();
   useEffect(() => {
     const t = setTimeout(() => setGrow(true), 40);
     return () => clearTimeout(t);
@@ -62,17 +63,23 @@ function Bars({
               transition: `transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${i * 25}ms`,
             }}
           >
-            {segments.map((seg, si) => (
-              <rect
-                key={si}
-                x={x}
-                y={seg.y}
-                width={barW}
-                height={seg.h}
-                style={{ fill: seg.colorVar }}
-                opacity={0.92}
-              />
-            ))}
+            {/* 整根柱子的圆角裁剪：矩形向下多留一段，让圆角只出现在顶部，堆叠色段保持齐平 */}
+            <clipPath id={`${uid}-c${i}`}>
+              <rect x={x} y={baseline - fullH} width={barW} height={fullH + 10} rx={Math.min(barW / 2, 4)} />
+            </clipPath>
+            <g clipPath={`url(#${uid}-c${i})`}>
+              {segments.map((seg, si) => (
+                <rect
+                  key={si}
+                  x={x}
+                  y={seg.y}
+                  width={barW}
+                  height={seg.h}
+                  style={{ fill: seg.colorVar }}
+                  opacity={0.92}
+                />
+              ))}
+            </g>
             {/* 透明覆盖层用于整根柱子的悬停提示 */}
             <rect x={x} y={baseline - fullH} width={barW} height={fullH} fill="transparent">
               <title>{`${labels[i]}：${tip}`}</title>

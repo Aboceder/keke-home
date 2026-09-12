@@ -401,7 +401,14 @@ export function FeedingStation() {
             alt="可可"
             className="size-10 rounded-xl shadow-sm"
           />
-          <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
+            {data.ageDays != null && (
+              <span className="badge badge-soft badge-primary badge-sm whitespace-nowrap font-digits">
+                已经 {data.ageDays} 天啦
+              </span>
+            )}
+          </div>
         </div>
         <Link href="/stats" className="btn btn-ghost btn-square btn-sm" aria-label="统计">
           <BarChart3 className="size-5" />
