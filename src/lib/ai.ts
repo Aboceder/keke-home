@@ -25,7 +25,7 @@ export async function aiSummarize(prompt: string): Promise<string | null> {
           {
             role: "system",
             content:
-              "你是家庭育儿助手，根据喂养数据对比写简短、自然、温暖的中文总结。像家人聊天，不要像报表。禁止逐项罗列数字，禁止使用括号补充，不要标题和列表符号。",
+              "你是家庭育儿助手，根据喂养数据和进食规律写简短、自然、温暖的中文总结。像家人聊天，不要像报表。不要逐项罗列数字，禁止使用括号补充，不要标题和列表符号。",
           },
           { role: "user", content: prompt },
         ],

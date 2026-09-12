@@ -12,6 +12,11 @@ interface RangeStats {
   bottleMl: number;
   formulaMl: number;
   breastMl: number;
+  feedCount: number; // 母乳 + 奶瓶总次数
+  avgGapMin: number | null; // 相邻两次喂养平均间隔（分钟），次数 < 2 为 null
+  maxGapMin: number | null; // 最长一次间隔
+  nightFeedCount: number; // 夜奶次数（22:00 ~ 06:00 开始/记录的喂养）
+  peakHours: string; // 喂养最集中的时段，如 "11点~13点 4次、17点~19点 3次"，无数据为空串
   stoolCount: number;
   stoolTexture: string; // "稀 2、软 1"，空串表示都没填
   stoolColor: string; // "黄 3、绿 1"
@@ -23,11 +28,11 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
   const [feedings, bottles, stools] = await Promise.all([
     prisma.feeding.findMany({
       where: { startedAt: { gte: `${startDate} 00:00`, lte: `${endDate} 23:59` } },
-      select: { leftSeconds: true, rightSeconds: true },
+      select: { startedAt: true, leftSeconds: true, rightSeconds: true },
     }),
     prisma.bottle.findMany({
       where: { time: { gte: `${startDate} 00:00`, lte: `${endDate} 23:59` } },
-      select: { amountMl: true, type: true },
+      select: { time: true, amountMl: true, type: true },
     }),
     prisma.stool.findMany({
       where: { time: { gte: `${startDate} 00:00`, lte: `${endDate} 23:59` } },
@@ -48,12 +53,66 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
     bottleMl: bottles.reduce((s, b) => s + b.amountMl, 0),
     formulaMl: bottles.filter((b) => b.type === "奶粉").reduce((s, b) => s + b.amountMl, 0),
     breastMl: bottles.filter((b) => b.type === "母乳").reduce((s, b) => s + b.amountMl, 0),
+    ...feedRhythm(
+      [
+        ...feedings.map((f) => f.startedAt),
+        ...bottles.map((b) => b.time),
+      ],
+      dayCount(startDate, endDate),
+    ),
     stoolCount: stools.length,
     stoolTexture,
     stoolColor,
     stoolOthers,
   };
   return stats;
+}
+
+/** 闭区间天数：如 9/10~9/12 为 3 天 */
+function dayCount(startDate: string, endDate: string): number {
+  const a = Date.parse(`${startDate} 00:00:00+08:00`);
+  const b = Date.parse(`${endDate} 00:00:00+08:00`);
+  return Math.max(1, Math.round((b - a) / 86400000) + 1);
+}
+
+/**
+ * 进食规律：相邻喂养（母乳开始时间/奶瓶时间）的平均与最长间隔、夜奶次数、最集中时段。
+ * 墙上时间字符串字典序即时间序，可直接排序；次数 < 2 算不出间隔。
+ */
+function feedRhythm(
+  times: string[],
+  dayCount: number,
+): Pick<RangeStats, "feedCount" | "avgGapMin" | "maxGapMin" | "nightFeedCount" | "peakHours"> {
+  const sorted = [...times].sort();
+  const gaps = sorted.slice(1).map((t, i) => {
+    const a = Date.parse(`${sorted[i]}:00+08:00`);
+    const b = Date.parse(`${t}:00+08:00`);
+    return Math.max(0, Math.round((b - a) / 60000));
+  });
+  const isNight = (t: string) => {
+    const h = Number(t.slice(11, 13));
+    return h >= 22 || h < 6;
+  };
+  // 2 小时一段统计分布，取次数 ≥ 2 且不低于最大段一半的时段（早段奶少没参考价值）
+  const hourBuckets = new Map<number, number>();
+  for (const t of sorted) {
+    const h = Number(t.slice(11, 13));
+    hourBuckets.set(h, (hourBuckets.get(h) ?? 0) + 1);
+  }
+  const dayAvg = Math.max(1, sorted.length / Math.max(1, dayCount)); // 每天平均喂几次
+  const buckets = [...hourBuckets.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, n]) => n >= 2 && n >= dayAvg / 2)
+    .slice(0, 3)
+    .sort((a, b) => a[0] - b[0])
+    .map(([h, n]) => `${h}点~${(h + 2) % 24}点 ${n}次`);
+  return {
+    feedCount: sorted.length,
+    avgGapMin: gaps.length > 0 ? Math.round(gaps.reduce((s, g) => s + g, 0) / gaps.length) : null,
+    maxGapMin: gaps.length > 0 ? Math.max(...gaps) : null,
+    nightFeedCount: sorted.filter(isNight).length,
+    peakHours: buckets.join("、"),
+  };
 }
 
 /** 非 null 值分组计数，拼成 "稀 2、软 1"；全部为 null 返回空串 */
@@ -114,17 +173,25 @@ function buildPrompt(
     return bits.length > 0 ? `（${bits.join("；")}）` : "";
   };
   const others = [...cur.stoolOthers, ...prev.stoolOthers];
+  const rhythmLine = (s: RangeStats) => {
+    if (s.avgGapMin == null || s.maxGapMin == null) return "间隔不足两次，无法统计";
+    const peak = s.peakHours ? `，喂养集中在 ${s.peakHours}` : "";
+    return `共 ${s.feedCount} 次，平均间隔 ${fmtMinutes(s.avgGapMin * 60)}，最长间隔 ${fmtMinutes(s.maxGapMin * 60)}，夜奶（22点~6点）${s.nightFeedCount} 次${peak}`;
+  };
   return [
     ageLine,
-    `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），便便 ${cur.stoolCount} 次${stoolDetail(cur)}。`,
-    `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），便便 ${prev.stoolCount} 次${stoolDetail(prev)}。`,
+    `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），进食规律：${rhythmLine(cur)}，便便 ${cur.stoolCount} 次${stoolDetail(cur)}。`,
+    `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），进食规律：${rhythmLine(prev)}，便便 ${prev.stoolCount} 次${stoolDetail(prev)}。`,
     others.length > 0 ? `便便的补充说明：${others.join("；")}。` : "",
     `${periodName === "周报" ? "写 4~6 句" : "写 3~5 句"}中文，给家人看的。要求：`,
-    `1. 先算好变化（次数/时长/奶量/便便的增减），用一句概括最值得注意的变化，变化大时直接说"明显变多/变少"，并提醒是否需要留意；`,
-    `2. 便便部分重点看性状和颜色：出现水样便、绿色便、黑色便、干硬等异常要提醒观察，正常则不用展开说；`,
-    `3. 禁止逐项罗列数字，禁止出现括号补充说明；正文里最多出现 3 个具体数字；`,
-    `4. 像家人说话一样自然温暖，最后一句给实用建议（如有异常信号优先提醒观察精神状态、尿量等）。`,
-    `示例风格："可可今天吃得比昨天少了不少，奶量和亲喂时长都减半了，便便也少了。小婴儿偶尔一天吃得少不用太紧张，先观察精神状态和小便次数，如果明天还是这么少，或者精神不好，就要上心一点了。"`,
+    `1. 概括喂养变化：次数/时长/奶量/便便的增减，变化大时直接说"明显变多/变少"，并提醒是否需要留意；`,
+    `2. 说一说进食规律：结合平均间隔、最长间隔、夜奶次数的变化（比如白天间隔是否在拉长、夜奶是否减少），以及喂养集中的时段（方便家人提前准备、掌握喂奶节奏），贴合月龄讲讲规律是否在变好、有什么可以引导的方向；`,
+    `3. 用你的育儿知识，结合月龄和真实数据给一句温馨提示（这个月龄的喂养特点/常见现象/可以尝试的做法）；但数据明显异常时，优先提醒异常和需要观察的信号，不用再展开科普；`,
+    `4. 如果数据少得不像这个周期的正常水平（比如一天只记录了一两次、奶量低得离谱），优先提醒家人"是不是忘记记录了"，而不是当成喂养异常；`,
+    `5. 便便重点看性状和颜色：出现水样便、绿色便、黑色便、干硬等异常要提醒观察，正常则不用展开说；`,
+    `6. 不要像报表一样逐项罗列数字，禁止括号补充说明；数字挑最关键的用，说清意思就好；`,
+    `7. 像家人说话一样自然温暖，最后一句给实用建议（如有异常信号优先提醒观察精神状态、尿量等）。`,
+    `示例风格："可可最近吃奶的间隔慢慢拉开了，白天能隔三个多小时才饿，夜里也要醒一次。奶量比上星期稳中有升，便便金黄软糊，挺让人放心的。这个月龄可以试着在白天多跟她说说话玩一玩，别一哭就喂，也许很快就能睡整觉啦。"`,
   ].filter(Boolean).join("\n");
 }
 
