@@ -45,6 +45,7 @@ model Stool {
 // 全局唯一的一条进行中母乳记录，id 恒为 1
 model ActiveFeeding {
   id                   Int      @id @default(1)
+  version              String? // 每次状态变化生成新版本；允许旧计时记录迁移后暂为 null
   startedAt            String // 本次喂奶开始时间 "YYYY-MM-DD HH:mm"
   activeSide           String? // 正在计时的侧：left/right；null 表示已结束一侧、等待切换或结束
   activeSideStartedAt  DateTime? // 当前侧开始计时的真实时刻（算经过秒数用）

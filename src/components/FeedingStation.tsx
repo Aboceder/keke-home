@@ -201,6 +201,9 @@ export function FeedingStation() {
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const currentDate = useRef<string | null>(null);
+  const pendingRequest = useRef<AbortController | null>(null);
 
   const [modal, setModal] = useState<
     | { type: "startFeeding" }
@@ -244,31 +247,43 @@ export function FeedingStation() {
   }, []);
 
   const refresh = useCallback(async () => {
+    // 旧日期的保存回调不能取消新日期的请求，也不能把页面切回旧数据。
+    if (currentDate.current !== date) return;
+    pendingRequest.current?.abort();
+    const controller = new AbortController();
+    pendingRequest.current = controller;
     try {
-      applyData(await api<DayData>(`/api/day?date=${date}`));
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "加载失败");
+      const next = await api<DayData>(`/api/day?date=${date}`, { signal: controller.signal });
+      if (pendingRequest.current === controller && !controller.signal.aborted) {
+        applyData(next);
+        setLoadError(null);
+      }
+    } catch {
+      if (pendingRequest.current === controller && !controller.signal.aborted) {
+        setLoadError("记录加载失败，请稍后重试。");
+      }
+    } finally {
+      if (pendingRequest.current === controller) pendingRequest.current = null;
     }
-  }, [date, applyData, showError]);
+  }, [date, applyData]);
 
   // 自动同步：轮询（可见页每 2 秒）+ 计时本地走秒
   useEffect(() => {
-    let alive = true;
+    currentDate.current = date;
     const tick = () => {
-      if (document.visibilityState !== "visible") return;
-      api<DayData>(`/api/day?date=${date}`)
-        .then((d) => {
-          if (alive) applyData(d);
-        })
-        .catch(() => {});
+      // 慢请求尚未结束时跳过轮询；保存后的主动刷新则会取消旧请求。
+      if (document.visibilityState !== "visible" || pendingRequest.current) return;
+      void refresh();
     };
     tick();
     const t = setInterval(tick, 2000);
     return () => {
-      alive = false;
+      currentDate.current = null;
+      pendingRequest.current?.abort();
+      pendingRequest.current = null;
       clearInterval(t);
     };
-  }, [date, applyData]);
+  }, [date, refresh]);
 
   useEffect(() => {
     const t = setInterval(() => setNowMs(Date.now()), 1000);
@@ -281,16 +296,20 @@ export function FeedingStation() {
     setBusy(true);
     try {
       await fn();
-      await refresh();
     } catch (err) {
       showError(err instanceof Error ? err.message : "操作失败");
     } finally {
+      // 冲突操作失败后也重新读取状态，让按钮跟随另一台设备的操作结果。
+      await refresh();
       setBusy(false);
     }
   }
 
   function handleActive(action: "endSide" | "switch" | "resume" | "finish", side?: Side) {
-    run(() => api("/api/active", { method: "POST", body: JSON.stringify({ action, side }) }));
+    run(() => api("/api/active", {
+      method: "POST",
+      body: JSON.stringify({ action, side, version: active?.version }),
+    }));
   }
 
   async function handleDelete() {
@@ -300,10 +319,18 @@ export function FeedingStation() {
     await run(() => api(`/api/${kind}s/${id}`, { method: "DELETE" }));
   }
 
+  const loadErrorNotice = loadError && (
+    <div role="alert" className="alert sm:alert-horizontal">
+      <AlertCircle className="size-5" />
+      <span>{loadError}</span>
+      <button className="btn btn-sm" onClick={() => void refresh()}>重试</button>
+    </div>
+  );
+
   if (!data) {
     return (
-      <main className="flex min-h-svh items-center justify-center">
-        <span className="loading loading-spinner loading-lg" />
+      <main className="mx-auto flex min-h-svh max-w-xl items-center justify-center px-4">
+        {loadErrorNotice || <span role="status" aria-label="正在加载记录" className="loading loading-spinner loading-lg" />}
       </main>
     );
   }
@@ -392,6 +419,7 @@ export function FeedingStation() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
+      {loadErrorNotice && <div className="mb-4">{loadErrorNotice}</div>}
       {/* 顶栏：logo + 标题 + 统计入口 */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">

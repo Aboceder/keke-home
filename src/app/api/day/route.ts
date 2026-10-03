@@ -1,47 +1,16 @@
 import { ageDaysAt } from "@/lib/age";
+import { activeState } from "@/lib/active-feeding";
 import { prisma } from "@/lib/prisma";
-import { nowDate } from "@/lib/time";
-import type { ActiveState, DayData } from "@/lib/types";
+import { normalizeDate, nowDate } from "@/lib/time";
+import type { DayData } from "@/lib/types";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-function activeState(row: {
-  startedAt: string;
-  activeSide: string | null;
-  activeSideStartedAt: Date | null;
-  leftSeconds: number | null;
-  rightSeconds: number | null;
-  leftDone: boolean;
-  rightDone: boolean;
-}): ActiveState {
-  // elapsed = 该侧总时长（含 resume 之前累计的）+ 本次正在计的秒数
-  const base =
-    row.activeSide === "left"
-      ? (row.leftSeconds ?? 0)
-      : (row.rightSeconds ?? 0);
-  const elapsed =
-    row.activeSide && row.activeSideStartedAt
-      ? base + Math.max(0, Math.floor((Date.now() - row.activeSideStartedAt.getTime()) / 1000))
-      : 0;
-  return {
-    exists: true,
-    startedAt: row.startedAt,
-    activeSide: (row.activeSide as "left" | "right" | null) ?? null,
-    activeSideStartedAt: row.activeSideStartedAt
-      ? row.activeSideStartedAt.toISOString()
-      : null,
-    leftSeconds: row.leftSeconds,
-    rightSeconds: row.rightSeconds,
-    leftDone: row.leftDone,
-    rightDone: row.rightDone,
-    elapsed,
-  };
-}
-
 export async function GET(request: NextRequest) {
   const param = request.nextUrl.searchParams.get("date");
-  const date = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : nowDate();
+  const date = param === null ? nowDate() : normalizeDate(param);
+  if (!date) return Response.json({ error: "日期格式不正确" }, { status: 400 });
 
   const [feedings, bottles, stools, activeRow] = await Promise.all([
     prisma.feeding.findMany({
@@ -79,19 +48,7 @@ export async function GET(request: NextRequest) {
     feedings,
     bottles,
     stools,
-    active: activeRow
-      ? activeState(activeRow)
-      : {
-          exists: false,
-          startedAt: "",
-          activeSide: null,
-          activeSideStartedAt: null,
-          leftSeconds: null,
-          rightSeconds: null,
-          leftDone: false,
-          rightDone: false,
-          elapsed: 0,
-        },
+    active: activeState(activeRow),
   };
 
   return Response.json(data);

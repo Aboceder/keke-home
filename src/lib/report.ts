@@ -16,7 +16,7 @@ interface RangeStats {
   avgGapMin: number | null; // 相邻两次喂养平均间隔（分钟），次数 < 2 为 null
   maxGapMin: number | null; // 最长一次间隔
   nightFeedCount: number; // 夜奶次数（22:00 ~ 06:00 开始/记录的喂养）
-  peakHours: string; // 喂养最集中的时段，如 "11点~13点 4次、17点~19点 3次"，无数据为空串
+  peakHours: string; // 喂养最集中的时段，如 "10点~12点 4次、16点~18点 3次"，无数据为空串
   stoolCount: number;
   stoolTexture: string; // "稀 2、软 1"，空串表示都没填
   stoolColor: string; // "黄 3、绿 1"
@@ -58,7 +58,6 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
         ...feedings.map((f) => f.startedAt),
         ...bottles.map((b) => b.time),
       ],
-      dayCount(startDate, endDate),
     ),
     stoolCount: stools.length,
     stoolTexture,
@@ -68,20 +67,12 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
   return stats;
 }
 
-/** 闭区间天数：如 9/10~9/12 为 3 天 */
-function dayCount(startDate: string, endDate: string): number {
-  const a = Date.parse(`${startDate} 00:00:00+08:00`);
-  const b = Date.parse(`${endDate} 00:00:00+08:00`);
-  return Math.max(1, Math.round((b - a) / 86400000) + 1);
-}
-
 /**
  * 进食规律：相邻喂养（母乳开始时间/奶瓶时间）的平均与最长间隔、夜奶次数、最集中时段。
  * 墙上时间字符串字典序即时间序，可直接排序；次数 < 2 算不出间隔。
  */
 function feedRhythm(
   times: string[],
-  dayCount: number,
 ): Pick<RangeStats, "feedCount" | "avgGapMin" | "maxGapMin" | "nightFeedCount" | "peakHours"> {
   const sorted = [...times].sort();
   const gaps = sorted.slice(1).map((t, i) => {
@@ -93,16 +84,16 @@ function feedRhythm(
     const h = Number(t.slice(11, 13));
     return h >= 22 || h < 6;
   };
-  // 2 小时一段统计分布，取次数 ≥ 2 且不低于最大段一半的时段（早段奶少没参考价值）
+  // 北京时间按 00~02、02~04 等固定两小时时段分桶，标签与计数覆盖同一区间。
   const hourBuckets = new Map<number, number>();
   for (const t of sorted) {
-    const h = Number(t.slice(11, 13));
+    const h = Math.floor(Number(t.slice(11, 13)) / 2) * 2;
     hourBuckets.set(h, (hourBuckets.get(h) ?? 0) + 1);
   }
-  const dayAvg = Math.max(1, sorted.length / Math.max(1, dayCount)); // 每天平均喂几次
+  const peakCount = Math.max(0, ...hourBuckets.values());
   const buckets = [...hourBuckets.entries()]
     .sort((a, b) => b[1] - a[1])
-    .filter(([, n]) => n >= 2 && n >= dayAvg / 2)
+    .filter(([, n]) => n >= 2 && n >= peakCount / 2)
     .slice(0, 3)
     .sort((a, b) => a[0] - b[0])
     .map(([h, n]) => `${h}点~${(h + 2) % 24}点 ${n}次`);
@@ -138,8 +129,7 @@ function fmtMinutes(seconds: number): string {
 
 function deltaLine(label: string, cur: number, prev: number, unit: string): string {
   const diff = cur - prev;
-  const arrow = diff > 0 ? `+${diff}` : `${diff}`;
-  return `${label} ${cur}${unit}（${diff === 0 ? "持平" : `${diff > 0 ? "多" : "少"} ${arrow.replace("+", "")}${unit}`}）`;
+  return `${label} ${cur}${unit}（${diff === 0 ? "持平" : `${diff > 0 ? "多" : "少"} ${Math.abs(diff)}${unit}`}）`;
 }
 
 function linesFor(stats: RangeStats): string {

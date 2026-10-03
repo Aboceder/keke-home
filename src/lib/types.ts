@@ -2,6 +2,7 @@ export type Side = "left" | "right";
 
 export interface ActiveState {
   exists: boolean;
+  version: string | null; // 操作时提交此版本，拒绝其他设备操作后过期的请求
   startedAt: string; // "YYYY-MM-DD HH:mm"
   activeSide: Side | null; // null = 有一侧已结束，等待切换或结束
   activeSideStartedAt: string | null; // ISO 时间，客户端据此本地走秒

@@ -47,8 +47,8 @@ export function dateDaysAgo(daysAgo: number): string {
 /** 标准化并校验 "YYYY-MM-DD HH:mm"（datetime-local 值为 "YYYY-MM-DDTHH:mm"） */
 export function normalizeDt(v: unknown): string | null {
   if (typeof v !== "string") return null;
-  const s = v.trim().replace("T", " ").slice(0, 16);
-  if (!DT_RE.test(s)) return null;
+  const s = v.trim().replace("T", " ");
+  if (!DT_RE.test(s) || !normalizeDate(s.slice(0, 10))) return null;
   const [, hm] = s.split(" ");
   const [h, m] = hm.split(":").map(Number);
   if (h > 23 || m > 59) return null;
@@ -58,8 +58,14 @@ export function normalizeDt(v: unknown): string | null {
 /** 校验日期 "YYYY-MM-DD" */
 export function normalizeDate(v: unknown): string | null {
   if (typeof v !== "string") return null;
-  const s = v.trim().slice(0, 10);
+  const s = v.trim();
   if (!DATE_RE.test(s)) return null;
+  const [year, month, day] = s.split("-").map(Number);
+  if (year < 1 || month < 1 || month > 12 || day < 1) return null;
+  // 直接校验公历月份与闰年，避免 Date 自动把 2 月 31 日滚动到 3 月。
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day > daysInMonth[month - 1]) return null;
   return s;
 }
 
