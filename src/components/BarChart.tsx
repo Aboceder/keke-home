@@ -167,13 +167,17 @@ export function BarChart({
 
       {/* X 轴日期标签 */}
       {[...labelIdx].sort((a, b) => a - b).map((i) => {
-        const x = marginLeft + i * slot + slot / 2;
+        const center = marginLeft + i * slot + slot / 2;
+        // 柱位越密 slot 越小，末尾标签居中后会超出 viewBox 右缘被裁掉（30 天时 slot≈9px），
+        // 此时改为贴右缘对齐。左侧有 marginLeft 让位，不需要处理。
+        const halfWidth = labels[i].length * 2.2; // fontSize=8 时约每字符 4.4px
+        const atRightEdge = i === labels.length - 1 && center + halfWidth > W;
         return (
           <text
             key={i}
-            x={x}
+            x={atRightEdge ? W : center}
             y={H - 6}
-            textAnchor="middle"
+            textAnchor={atRightEdge ? "end" : "middle"}
             className="fill-current"
             fontSize={8}
             opacity={0.6}
