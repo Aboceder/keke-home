@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { overlapSeconds } from "@/lib/sleep";
 import { dateDaysAgo } from "@/lib/time";
 import type { NextRequest } from "next/server";
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   const startDate = dateDaysAgo(days - 1);
 
-  const [feedings, bottles, stools] = await Promise.all([
+  const [feedings, bottles, stools, sleeps] = await Promise.all([
     prisma.feeding.findMany({
       where: { startedAt: { gte: `${startDate} 00:00` } },
       select: { startedAt: true, leftSeconds: true, rightSeconds: true },
@@ -30,6 +31,11 @@ export async function GET(request: NextRequest) {
     prisma.stool.findMany({
       where: { time: { gte: `${startDate} 00:00` } },
       select: { time: true },
+    }),
+    // 只要结束时间落在区间内就取回来：既包含区间内的睡眠，也包含「前一天入睡、跨到第一天醒」的那段
+    prisma.sleep.findMany({
+      where: { endedAt: { gte: `${startDate} 00:00` } },
+      select: { startedAt: true, endedAt: true },
     }),
   ]);
 
@@ -69,6 +75,8 @@ export async function GET(request: NextRequest) {
       formulaMl: row?.formulaMl ?? 0,
       breastBottleMl: row?.breastBottleMl ?? 0,
       stoolCount: row?.stoolCount ?? 0,
+      // 跨天时段按重叠拆分到相邻两天，同一条记录会分别计入
+      sleepSeconds: sleeps.reduce((s, x) => s + overlapSeconds(x.startedAt, x.endedAt, date), 0),
     });
   }
 

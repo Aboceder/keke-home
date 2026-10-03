@@ -96,14 +96,16 @@ export function BarChart({
   labels,
   series,
   format,
+  marginLeft = 40,
 }: {
   labels: string[];
   series: ChartSeries[];
   format: (value: number) => string;
+  // Y 轴刻度是右对齐到 marginLeft - 5 的，标签更长（如「13h19min」）时要留宽一点
+  marginLeft?: number;
 }) {
   const W = 320;
   const H = 180;
-  const marginLeft = 40;
   const marginBottom = 22;
   const top = 10;
 

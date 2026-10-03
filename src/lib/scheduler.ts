@@ -3,6 +3,7 @@
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
 import { sendDailyReport, sendWeeklyReport } from "@/lib/report";
+import { MAX_SLEEP_SECONDS, dtMs } from "@/lib/sleep";
 import { barkPush, barkConfigured } from "@/lib/bark";
 
 const TZ = "Asia/Shanghai";
@@ -10,6 +11,7 @@ const INTERVAL_ALERT_HOURS = 4; // 喂养间隔阈值
 const FORGET_ALERT_MINUTES = 45; // 单侧计时遗忘阈值
 const INTERVAL_COOLDOWN_MS = 60 * 60 * 1000; // 间隔提醒冷却 1 小时
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 实时提醒检查周期
+const WAKE_ALERT_MINUTES = 90; // 清醒间隔提醒阈值（提醒用的经验值，不是医学建议）
 
 // 静音时段（北京时间）：22:30 ~ 07:30 不发提醒（日报周报在白天不受影响）
 function isQuietHours(): boolean {
@@ -73,10 +75,59 @@ async function checkForgetTimer(): Promise<void> {
   await barkPush("计时提醒", `母乳计时已经进行超过 ${FORGET_ALERT_MINUTES} 分钟，是不是忘记结束了？`, "timeSensitive");
 }
 
-function checkReminders(): void {
-  Promise.all([checkFeedingInterval(), checkForgetTimer()]).catch((err) =>
-    console.error("[scheduler] 提醒检查失败:", err),
+// ---- 睡眠提醒的防重复状态 ----
+let sleepForgetAlerted = false; // 同一次睡眠计时只提醒一次，计时清掉后复位
+const wakeAlerted = new Set<string>(); // 已提醒过的「醒来时刻」
+
+async function checkSleepForget(): Promise<void> {
+  const active = await prisma.activeSleep.findUnique({ where: { id: 1 } });
+  if (!active) {
+    sleepForgetAlerted = false;
+    return;
+  }
+  if (isQuietHours()) return;
+  const ms = Date.now() - active.startedAtMs.getTime();
+  if (ms < MAX_SLEEP_SECONDS * 1000 || sleepForgetAlerted) return;
+
+  sleepForgetAlerted = true;
+  await barkPush(
+    "睡眠提醒",
+    `睡眠计时已经超过 ${MAX_SLEEP_SECONDS / 3600} 小时，是不是忘记点醒来了？`,
+    "timeSensitive",
   );
+}
+
+/** 清醒间隔：距上一次醒来的时长超过阈值时提醒哄睡，同一次清醒只提醒一次 */
+async function checkWakeWindow(): Promise<void> {
+  const active = await prisma.activeSleep.findUnique({ where: { id: 1 } });
+  if (active) return; // 正在睡，没有清醒间隔
+  if (isQuietHours()) return;
+
+  const last = await prisma.sleep.findFirst({
+    orderBy: { endedAt: "desc" },
+    select: { endedAt: true },
+  });
+  if (!last || wakeAlerted.has(last.endedAt)) return;
+
+  const ms = Date.now() - dtMs(last.endedAt);
+  if (ms < WAKE_ALERT_MINUTES * 60000) return;
+
+  wakeAlerted.add(last.endedAt);
+  // 集合防膨胀：只保留最近 20 次
+  if (wakeAlerted.size > 20) {
+    const oldest = wakeAlerted.values().next().value;
+    if (oldest != null) wakeAlerted.delete(oldest);
+  }
+  await barkPush("清醒提醒", `可可已经清醒 ${Math.floor(ms / 60000)} 分钟了，该哄睡啦～`, "timeSensitive");
+}
+
+function checkReminders(): void {
+  Promise.all([
+    checkFeedingInterval(),
+    checkForgetTimer(),
+    checkSleepForget(),
+    checkWakeWindow(),
+  ]).catch((err) => console.error("[scheduler] 提醒检查失败:", err));
 }
 
 export function startScheduler(): void {
@@ -98,5 +149,7 @@ export function startScheduler(): void {
     sendWeeklyReport().catch((err) => console.error("[scheduler] 周报失败:", err));
   }, { timezone: TZ });
 
-  console.log("[scheduler] 定时任务已启动：间隔/遗忘提醒(5min)、日报(00:01)、周报(周一09:00)");
+  console.log(
+    "[scheduler] 定时任务已启动：间隔/计时遗忘/睡眠遗忘/清醒提醒(5min)、日报(00:01)、周报(周一09:00)",
+  );
 }

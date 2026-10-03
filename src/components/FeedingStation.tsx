@@ -1,9 +1,17 @@
 "use client";
 
-import { BottleModal, ManualFeedingModal, StartFeedingModal, StoolModal } from "@/components/RecordModals";
+import {
+  BottleModal,
+  ManualFeedingModal,
+  SleepModal,
+  StartFeedingModal,
+  StartSleepModal,
+  StoolModal,
+} from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration, fmtDurationMin } from "@/lib/client";
 import { CountUp } from "@/components/CountUp";
-import type { ActiveState, DayData, Side } from "@/lib/types";
+import { isOvernight, sleepSeconds } from "@/lib/sleep";
+import type { ActiveSleepState, ActiveState, DayData, Side } from "@/lib/types";
 import {
   AlertCircle,
   AlertTriangle,
@@ -12,15 +20,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Milk,
+  Moon,
   Sparkles,
   Toilet,
   Trash2,
-  Utensils,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Filter = "all" | "breast" | "bottle" | "stool";
+type Filter = "all" | "breast" | "bottle" | "stool" | "sleep";
 
 const SIDE_NAME: Record<Side, string> = { left: "左侧", right: "右侧" };
 
@@ -56,22 +64,18 @@ function ActiveBar({
 
   if (active.activeSide) {
     return (
-      <div className="fixed inset-x-0 bottom-0 z-40 pb-3.5">
-        <div className="mx-auto max-w-xl px-4">
-          <div role="alert" className="alert bg-primary text-primary-content rounded-2xl shadow-lg">
-            <div className="flex items-center gap-1.5">
-              <span className="breathing-dot size-3 rounded-full bg-current" />
-              <Baby className="size-5" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
-              <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
-            </div>
-            <button className="btn" disabled={busy} onClick={() => onAction("endSide")}>
-              结束本侧
-            </button>
-          </div>
+      <div role="alert" className="alert bg-primary text-primary-content rounded-2xl shadow-lg">
+        <div className="flex items-center gap-1.5">
+          <span className="breathing-dot size-3 rounded-full bg-current" />
+          <Baby className="size-5" />
         </div>
+        <div className="flex-1">
+          <p className="text-sm opacity-80">母乳 · {SIDE_NAME[active.activeSide]}计时中</p>
+          <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
+        </div>
+        <button className="btn" disabled={busy} onClick={() => onAction("endSide")}>
+          结束本侧
+        </button>
       </div>
     );
   }
@@ -91,51 +95,77 @@ function ActiveBar({
       : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 pb-3.5">
-      <div className="mx-auto max-w-xl px-4">
-        <div role="alert" className="alert alert-warning flex-wrap rounded-2xl shadow-lg">
-          <AlertTriangle className="size-6 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold">
-              {bothDone
-                ? `已喂 ${fmtDuration(doneTotal)}`
-                : doneSide && sideDoneSeconds != null
-                  ? `${SIDE_NAME[doneSide]}已喂 ${fmtDuration(sideDoneSeconds)}`
-                  : "一侧已喂完"}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {bothDone ? (
-              <>
-                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "left")}>
-                  继续左
-                </button>
-                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "right")}>
-                  继续右
-                </button>
-              </>
-            ) : (
-              doneSide && (
-                <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
-                  继续
-                </button>
-              )
-            )}
-            {switchTarget && (
-              <button
-                className="btn btn-sm"
-                disabled={busy}
-                onClick={() => onAction("switch", switchTarget)}
-              >
-                切换{SIDE_NAME[switchTarget]}
-              </button>
-            )}
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onAction("finish")}>
-              结束
-            </button>
-          </div>
-        </div>
+    <div role="alert" className="alert alert-warning flex-wrap rounded-2xl shadow-lg">
+      <AlertTriangle className="size-6 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold">
+          {bothDone
+            ? `已喂 ${fmtDuration(doneTotal)}`
+            : doneSide && sideDoneSeconds != null
+              ? `${SIDE_NAME[doneSide]}已喂 ${fmtDuration(sideDoneSeconds)}`
+              : "一侧已喂完"}
+        </p>
       </div>
+      <div className="flex gap-2">
+        {bothDone ? (
+          <>
+            <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "left")}>
+              继续左
+            </button>
+            <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", "right")}>
+              继续右
+            </button>
+          </>
+        ) : (
+          doneSide && (
+            <button className="btn btn-sm" disabled={busy} onClick={() => onAction("resume", doneSide)}>
+              继续
+            </button>
+          )
+        )}
+        {switchTarget && (
+          <button
+            className="btn btn-sm"
+            disabled={busy}
+            onClick={() => onAction("switch", switchTarget)}
+          >
+            切换{SIDE_NAME[switchTarget]}
+          </button>
+        )}
+        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => onAction("finish")}>
+          结束
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- 常驻睡眠条 ---------------- */
+
+function SleepBar({
+  activeSleep,
+  liveElapsed,
+  onWake,
+  busy,
+}: {
+  activeSleep: ActiveSleepState;
+  liveElapsed: number;
+  onWake: () => void;
+  busy: boolean;
+}) {
+  return (
+    <div role="alert" className="alert alert-info rounded-2xl shadow-lg">
+      <div className="flex items-center gap-1.5">
+        <span className="breathing-dot size-3 rounded-full bg-current" />
+        <Moon className="size-5" />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm opacity-80">睡眠 · {activeSleep.startedAt.slice(11)} 开始</p>
+        <p className="font-digits text-3xl leading-none font-bold">{fmtClock(liveElapsed)}</p>
+      </div>
+      <button className="btn" disabled={busy} onClick={onWake}>
+        醒来
+      </button>
     </div>
   );
 }
@@ -200,7 +230,7 @@ export function FeedingStation() {
   const [filter, setFilter] = useState<Filter>("all");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ text: string; kind: "error" | "warning" } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const currentDate = useRef<string | null>(null);
   const pendingRequest = useRef<AbortController | null>(null);
@@ -210,27 +240,34 @@ export function FeedingStation() {
     | { type: "bottle" }
     | { type: "stool" }
     | { type: "manualFeeding" }
+    | { type: "startSleep" }
+    | { type: "manualSleep" }
     | { type: "editBottle"; id: number }
     | { type: "editStool"; id: number }
     | { type: "editFeeding"; id: number }
+    | { type: "editSleep"; id: number }
     | null
   >(null);
   const [confirmDelete, setConfirmDelete] = useState<{
-    kind: "feeding" | "bottle" | "stool";
+    kind: "feeding" | "bottle" | "stool" | "sleep";
     id: number;
     label: string;
   } | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showError = useCallback((message: string) => {
-    setToast(message);
+  const showToast = useCallback((text: string, kind: "error" | "warning" = "error") => {
+    setToast({ text, kind });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3500);
+    // 警告是给人看的提示（比如睡眠超长），留久一点
+    toastTimer.current = setTimeout(() => setToast(null), kind === "warning" ? 6000 : 3500);
   }, []);
+  const showError = useCallback((text: string) => showToast(text, "error"), [showToast]);
 
   // 计时锚点：同一侧计时期间保持不变（本地连续走秒），换侧（activeSideStartedAt 变化）才重置；
   // 免疫设备与服务器时钟偏差，也避免轮询重置导致的显示卡顿
   const [anchor, setAnchor] = useState<{ startedAt: string; elapsed: number; atMs: number } | null>(null);
+  // 睡眠只有「开始」一个时刻，用 startedAtMs 判断是否是新的一段计时
+  const [sleepAnchor, setSleepAnchor] = useState<{ startedAtMs: string; elapsed: number; atMs: number } | null>(null);
   const applyData = useCallback((d: DayData) => {
     const a = d.active;
     const startedAt = a.activeSideStartedAt;
@@ -242,6 +279,16 @@ export function FeedingStation() {
       );
     } else {
       setAnchor(null);
+    }
+    const s = d.activeSleep;
+    if (s.exists && s.startedAtMs) {
+      setSleepAnchor((prev) =>
+        prev && prev.startedAtMs === s.startedAtMs
+          ? prev
+          : { startedAtMs: s.startedAtMs!, elapsed: s.elapsed, atMs: Date.now() },
+      );
+    } else {
+      setSleepAnchor(null);
     }
     setData(d);
   }, []);
@@ -291,6 +338,7 @@ export function FeedingStation() {
   }, []);
 
   const active = data?.active;
+  const activeSleep = data?.activeSleep;
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -310,6 +358,31 @@ export function FeedingStation() {
       method: "POST",
       body: JSON.stringify({ action, side, version: active?.version }),
     }));
+  }
+
+  function handleSleepStart() {
+    run(() => api("/api/active-sleep", {
+      method: "POST",
+      body: JSON.stringify({ action: "start" }),
+    }));
+  }
+
+  // 结束睡眠要看响应里的 discarded / warning，不能走无返回值的 run()
+  async function handleSleepWake() {
+    setBusy(true);
+    try {
+      const res = await api<{ discarded?: boolean; warning?: string }>("/api/active-sleep", {
+        method: "POST",
+        body: JSON.stringify({ action: "wake", version: activeSleep?.version }),
+      });
+      if (res.discarded) showToast("睡眠不足 1 分钟，已取消计时", "warning");
+      else if (res.warning) showToast(res.warning, "warning");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "操作失败");
+    } finally {
+      await refresh();
+      setBusy(false);
+    }
   }
 
   async function handleDelete() {
@@ -339,9 +412,10 @@ export function FeedingStation() {
   const editingBottle = modal?.type === "editBottle" ? data.bottles.find((b) => b.id === modal.id) : undefined;
   const editingStool = modal?.type === "editStool" ? data.stools.find((s) => s.id === modal.id) : undefined;
   const editingFeeding = modal?.type === "editFeeding" ? data.feedings.find((f) => f.id === modal.id) : undefined;
+  const editingSleep = modal?.type === "editSleep" ? data.sleeps.find((s) => s.id === modal.id) : undefined;
 
   // 时间线合并
-  type Entry = { kind: "breast" | "bottle" | "stool"; time: string; node: React.ReactNode };
+  type Entry = { kind: "breast" | "bottle" | "stool" | "sleep"; time: string; node: React.ReactNode };
   const entries: Entry[] = [];
   for (const f of data.feedings) {
     const sides = [
@@ -415,10 +489,42 @@ export function FeedingStation() {
       ),
     });
   }
+  // 睡眠在时间线上是一条区间记录：按入睡时刻归位，时长单独算（跨天时完整时段只出现在入睡日）
+  for (const s of data.sleeps) {
+    const overnight = isOvernight(s.startedAt, s.endedAt);
+    entries.push({
+      kind: "sleep",
+      time: s.startedAt,
+      node: (
+        <Row
+          key={`z${s.id}`}
+          time={s.startedAt.slice(11)}
+          icon={<Moon className="size-3" />}
+          badge="睡眠"
+          badgeClass="badge-info"
+          title={`${fmtDuration(sleepSeconds(s.startedAt, s.endedAt))} · ${overnight ? "跨天到" : "到"} ${s.endedAt.slice(11)}`}
+          note={s.note}
+          onEdit={() => setModal({ type: "editSleep", id: s.id })}
+          onDelete={() =>
+            setConfirmDelete({
+              kind: "sleep",
+              id: s.id,
+              label: `睡眠记录（${s.startedAt.slice(11)} 开始）`,
+            })
+          }
+        />
+      ),
+    });
+  }
   entries.sort((a, b) => (a.time < b.time ? 1 : -1));
 
+  const sleepLiveElapsed = sleepAnchor
+    ? Math.max(0, sleepAnchor.elapsed + Math.floor((nowMs - sleepAnchor.atMs) / 1000))
+    : 0;
+  const bothBars = !!activeSleep?.exists && !!active?.exists;
+
   return (
-    <main className="mx-auto max-w-xl px-4 pb-40 pt-4">
+    <main className={`mx-auto max-w-xl px-4 pt-4 ${bothBars ? "pb-56" : "pb-40"}`}>
       {loadErrorNotice && <div className="mb-4">{loadErrorNotice}</div>}
       {/* 顶栏：logo + 标题 + 统计入口 */}
       <div className="mb-3 flex items-center justify-between">
@@ -494,12 +600,13 @@ export function FeedingStation() {
         </div>
         <div className="rounded-box bg-base-200 px-3 py-2.5">
           <div className="stat-title flex items-center gap-1">
-            <Utensils className="size-3.5 opacity-70" />
-            总喂养
+            <Moon className="size-3.5 opacity-70" />
+            睡眠
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="stat-value font-digits"><CountUp value={data.stats.feedCount} /></span>
-            <span className="text-xs opacity-60">次</span>
+            <span className="font-digits text-2xl leading-none font-bold">
+              {fmtDurationMin(data.stats.sleepSeconds)}
+            </span>
           </div>
         </div>
         <div className="rounded-box bg-base-200 px-3 py-2.5">
@@ -514,23 +621,37 @@ export function FeedingStation() {
         </div>
       </div>
 
-      {/* 三个固定入口 */}
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      {/* 四个固定入口：一行摆开，允许睡眠与喂养同时进行，但同类不能重复开 */}
+      <div className="mb-4 grid grid-cols-4 gap-2">
         <button
-          className="btn btn-primary btn-lg h-16 text-base"
+          className="btn btn-primary h-14 min-w-0 gap-1.5 px-1 text-sm"
           disabled={busy || !!active?.exists}
           onClick={() => setModal({ type: "startFeeding" })}
         >
-          <Baby className="size-5" />
+          <Baby className="size-5 shrink-0" />
           母乳
         </button>
-        <button className="btn btn-secondary btn-lg h-16 text-base" onClick={() => setModal({ type: "bottle" })}>
-          <Milk className="size-5" />
+        <button
+          className="btn btn-secondary h-14 min-w-0 gap-1.5 px-1 text-sm"
+          onClick={() => setModal({ type: "bottle" })}
+        >
+          <Milk className="size-5 shrink-0" />
           奶瓶
         </button>
-        <button className="btn btn-accent btn-lg h-16 text-base" onClick={() => setModal({ type: "stool" })}>
-          <Toilet className="size-5" />
+        <button
+          className="btn btn-accent h-14 min-w-0 gap-1.5 px-1 text-sm"
+          onClick={() => setModal({ type: "stool" })}
+        >
+          <Toilet className="size-5 shrink-0" />
           便便
+        </button>
+        <button
+          className="btn btn-info h-14 min-w-0 gap-1.5 px-1 text-sm"
+          disabled={busy || !!activeSleep?.exists}
+          onClick={() => setModal({ type: "startSleep" })}
+        >
+          <Moon className="size-5 shrink-0" />
+          睡眠
         </button>
       </div>
 
@@ -542,6 +663,7 @@ export function FeedingStation() {
             ["breast", "母乳"],
             ["bottle", "奶瓶"],
             ["stool", "便便"],
+            ["sleep", "睡眠"],
           ] as [Filter, string][]
         ).map(([value, label]) => (
           <button
@@ -570,17 +692,38 @@ export function FeedingStation() {
           )}
       </section>
 
-      {/* 常驻喂养条 */}
-      {active?.exists && (
-        <ActiveBar active={active} nowMs={nowMs} anchor={anchor} onAction={handleActive} busy={busy} />
+      {/* 常驻计时条：睡眠在上、喂养在下，共用一个固定容器，两条同时开着也不会互相遮挡 */}
+      {(activeSleep?.exists || active?.exists) && (
+        <div className="fixed inset-x-0 bottom-0 z-40 pb-3.5">
+          <div className="mx-auto max-w-xl space-y-2 px-4">
+            {activeSleep?.exists && (
+              <SleepBar
+                activeSleep={activeSleep}
+                liveElapsed={sleepLiveElapsed}
+                onWake={handleSleepWake}
+                busy={busy}
+              />
+            )}
+            {active?.exists && (
+              <ActiveBar active={active} nowMs={nowMs} anchor={anchor} onAction={handleActive} busy={busy} />
+            )}
+          </div>
+        </div>
       )}
 
       {/* 错误提示 */}
       {toast && (
         <div className="toast toast-top toast-center z-50">
-          <div role="alert" className="alert alert-error text-sm shadow-lg">
-            <AlertCircle className="size-4" />
-            <span>{toast}</span>
+          <div
+            role="alert"
+            className={`alert text-sm shadow-lg ${toast.kind === "error" ? "alert-error" : "alert-warning"}`}
+          >
+            {toast.kind === "error" ? (
+              <AlertCircle className="size-4" />
+            ) : (
+              <AlertTriangle className="size-4" />
+            )}
+            <span>{toast.text}</span>
           </div>
         </div>
       )}
@@ -614,6 +757,23 @@ export function FeedingStation() {
       )}
       {modal?.type === "editFeeding" && editingFeeding && (
         <ManualFeedingModal initial={editingFeeding} onClose={() => setModal(null)} onSaved={refresh} />
+      )}
+      {modal?.type === "startSleep" && (
+        <StartSleepModal
+          busy={busy}
+          onClose={() => setModal(null)}
+          onStart={() => {
+            setModal(null);
+            handleSleepStart();
+          }}
+          onManual={() => setModal({ type: "manualSleep" })}
+        />
+      )}
+      {modal?.type === "manualSleep" && (
+        <SleepModal onClose={() => setModal(null)} onSaved={refresh} />
+      )}
+      {modal?.type === "editSleep" && editingSleep && (
+        <SleepModal initial={editingSleep} onClose={() => setModal(null)} onSaved={refresh} />
       )}
 
       {/* 删除确认 */}

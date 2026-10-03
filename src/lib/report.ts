@@ -1,6 +1,7 @@
 // 日报/周报：数据聚合（程序算）→ AI 总结（可降级为模板）→ Bark 推送
 import { ageDaysAt, birthDate } from "@/lib/age";
 import { prisma } from "@/lib/prisma";
+import { dtMs, sleepSeconds } from "@/lib/sleep";
 import { dateDaysAgo } from "@/lib/time";
 import { aiConfigured, aiSummarize } from "@/lib/ai";
 import { barkPush, barkConfigured } from "@/lib/bark";
@@ -21,11 +22,14 @@ interface RangeStats {
   stoolTexture: string; // "稀 2、软 1"，空串表示都没填
   stoolColor: string; // "黄 3、绿 1"
   stoolOthers: string[]; // 性状/颜色选「其他」时的补充文字
+  sleepCount: number; // 区间内开始的睡眠段数（与时间线口径一致）
+  sleepSeconds: number; // 落在区间内的实际睡眠时长，跨天时段按重叠拆分
+  longestSleepSeconds: number; // 最长一觉
 }
 
 /** 统计 [startDate, endDate] 闭区间（北京日期，含两端） */
 export async function rangeStats(startDate: string, endDate: string): Promise<RangeStats> {
-  const [feedings, bottles, stools] = await Promise.all([
+  const [feedings, bottles, stools, sleeps] = await Promise.all([
     prisma.feeding.findMany({
       where: { startedAt: { gte: `${startDate} 00:00`, lte: `${endDate} 23:59` } },
       select: { startedAt: true, leftSeconds: true, rightSeconds: true },
@@ -38,6 +42,11 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
       where: { time: { gte: `${startDate} 00:00`, lte: `${endDate} 23:59` } },
       select: { texture: true, color: true, textureOther: true, colorOther: true },
     }),
+    // 结束时间在区间内即取回：含区间内的睡眠，也含「前一天入睡、跨到第一天醒」的那段
+    prisma.sleep.findMany({
+      where: { endedAt: { gte: `${startDate} 00:00` }, startedAt: { lte: `${endDate} 23:59` } },
+      select: { startedAt: true, endedAt: true },
+    }),
   ]);
 
   const stoolTexture = groupCounts(stools.map((s) => s.texture));
@@ -45,6 +54,11 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
   const stoolOthers = stools
     .flatMap((s) => [s.textureOther, s.colorOther])
     .filter((v): v is string => Boolean(v?.trim()));
+
+  // 段数与最长一觉按「入睡时间落在区间内」统计，与时间线口径一致
+  const inRange = sleeps.filter(
+    (s) => s.startedAt >= `${startDate} 00:00` && s.startedAt <= `${endDate} 23:59`,
+  );
 
   const stats: RangeStats = {
     breastCount: feedings.length,
@@ -63,8 +77,31 @@ export async function rangeStats(startDate: string, endDate: string): Promise<Ra
     stoolTexture,
     stoolColor,
     stoolOthers,
+    sleepCount: inRange.length,
+    sleepSeconds: sleepSecondsInRange(sleeps, startDate, endDate),
+    longestSleepSeconds: inRange.reduce(
+      (m, s) => Math.max(m, sleepSeconds(s.startedAt, s.endedAt)),
+      0,
+    ),
   };
   return stats;
+}
+
+/** [startDate, endDate] 内实际睡了多少秒：每条睡眠与整个区间求交集后再相加 */
+function sleepSecondsInRange(
+  sleeps: { startedAt: string; endedAt: string }[],
+  startDate: string,
+  endDate: string,
+): number {
+  const rangeStart = dtMs(`${startDate} 00:00`);
+  const rangeEnd = dtMs(`${endDate} 00:00`) + 86400000;
+  let total = 0;
+  for (const s of sleeps) {
+    const from = Math.max(dtMs(s.startedAt), rangeStart);
+    const to = Math.min(dtMs(s.endedAt), rangeEnd);
+    total += Math.max(0, Math.floor((to - from) / 1000));
+  }
+  return total;
 }
 
 /**
@@ -134,10 +171,13 @@ function deltaLine(label: string, cur: number, prev: number, unit: string): stri
 
 function linesFor(stats: RangeStats): string {
   const texture = stats.stoolTexture ? `（${stats.stoolTexture}）` : "";
+  const sleepLongest =
+    stats.sleepCount > 0 ? `（最长一觉 ${fmtMinutes(stats.longestSleepSeconds)}）` : "";
   const parts = [
     `母乳 ${stats.breastCount} 次 ${fmtMinutes(stats.breastSeconds)}`,
     `奶瓶 ${stats.bottleCount} 次 ${stats.bottleMl}ml（奶粉 ${stats.formulaMl} / 母乳 ${stats.breastMl}）`,
     `便便 ${stats.stoolCount} 次${texture}`,
+    `睡眠 ${stats.sleepCount} 段 ${fmtMinutes(stats.sleepSeconds)}${sleepLongest}`,
   ];
   return parts.join("，");
 }
@@ -168,14 +208,18 @@ function buildPrompt(
     const peak = s.peakHours ? `，喂养集中在 ${s.peakHours}` : "";
     return `共 ${s.feedCount} 次，平均间隔 ${fmtMinutes(s.avgGapMin * 60)}，最长间隔 ${fmtMinutes(s.maxGapMin * 60)}，夜奶（22点~6点）${s.nightFeedCount} 次${peak}`;
   };
+  const sleepLine = (s: RangeStats) =>
+    s.sleepCount === 0
+      ? "，睡眠未记录"
+      : `，睡眠 ${s.sleepCount} 段共 ${fmtMinutes(s.sleepSeconds)}（最长一觉 ${fmtMinutes(s.longestSleepSeconds)}）`;
   return [
     ageLine,
-    `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），进食规律：${rhythmLine(cur)}，便便 ${cur.stoolCount} 次${stoolDetail(cur)}。`,
-    `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），进食规律：${rhythmLine(prev)}，便便 ${prev.stoolCount} 次${stoolDetail(prev)}。`,
+    `可可（婴儿）的喂养记录对比。${curLabel}：母乳 ${cur.breastCount} 次 ${curMin} 分钟，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（奶粉 ${cur.formulaMl}ml、母乳 ${cur.breastMl}ml），进食规律：${rhythmLine(cur)}，便便 ${cur.stoolCount} 次${stoolDetail(cur)}${sleepLine(cur)}。`,
+    `${prevLabel}：母乳 ${prev.breastCount} 次 ${prevMin} 分钟，奶瓶 ${prev.bottleCount} 次 ${prev.bottleMl}ml（奶粉 ${prev.formulaMl}ml、母乳 ${prev.breastMl}ml），进食规律：${rhythmLine(prev)}，便便 ${prev.stoolCount} 次${stoolDetail(prev)}${sleepLine(prev)}。`,
     others.length > 0 ? `便便的补充说明：${others.join("；")}。` : "",
     `${periodName === "周报" ? "写 4~6 句" : "写 3~5 句"}中文，给家人看的。要求：`,
     `1. 概括喂养变化：次数/时长/奶量/便便的增减，变化大时直接说"明显变多/变少"，并提醒是否需要留意；`,
-    `2. 说一说进食规律：结合平均间隔、最长间隔、夜奶次数的变化（比如白天间隔是否在拉长、夜奶是否减少），以及喂养集中的时段（方便家人提前准备、掌握喂奶节奏），贴合月龄讲讲规律是否在变好、有什么可以引导的方向；`,
+    `2. 说一说进食规律：结合平均间隔、最长间隔、夜奶次数的变化（比如白天间隔是否在拉长、夜奶是否减少），以及喂养集中的时段（方便家人提前准备、掌握喂奶节奏），贴合月龄讲讲规律是否在变好、有什么可以引导的方向；睡眠一并结合段数、总时长、最长一觉的变化，说说作息有没有在往整觉方向走，睡眠记录很少时就不用展开；`,
     `3. 用你的育儿知识，结合月龄和真实数据给一句温馨提示（这个月龄的喂养特点/常见现象/可以尝试的做法）；但数据明显异常时，优先提醒异常和需要观察的信号，不用再展开科普；`,
     `4. 如果数据少得不像这个周期的正常水平（比如一天只记录了一两次、奶量低得离谱），优先提醒家人"是不是忘记记录了"，而不是当成喂养异常；`,
     `5. 便便重点看性状和颜色：出现水样便、绿色便、黑色便、干硬等异常要提醒观察，正常则不用展开说；`,
@@ -203,6 +247,7 @@ async function summarizeWithFallback(
     deltaLine("奶瓶", cur.bottleCount, prev.bottleCount, "次"),
     deltaLine("奶量", cur.bottleMl, prev.bottleMl, "ml"),
     deltaLine("便便", cur.stoolCount, prev.stoolCount, "次"),
+    deltaLine("睡眠", Math.round(cur.sleepSeconds / 60), Math.round(prev.sleepSeconds / 60), "分钟"),
   ].join("；");
 }
 
@@ -251,6 +296,7 @@ export async function sendWeeklyReport(): Promise<void> {
   );
   await barkPush(
     `可可周报 ${start.slice(5).replace("-", "/")}~${end.slice(5).replace("-", "/")}`,
-    `母乳 ${cur.breastCount} 次 ${fmtMinutes(cur.breastSeconds)}，奶瓶 ${cur.bottleCount} 次 ${cur.bottleMl}ml（日均 ${dailyMl}ml），便便 ${cur.stoolCount} 次。\n${summary}`,
+    // 与日报共用 linesFor，避免两处字段各写一份漏项
+    `${linesFor(cur)}（奶瓶日均 ${dailyMl}ml）。\n${summary}`,
   );
 }

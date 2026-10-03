@@ -1,9 +1,10 @@
 "use client";
 
 import { api, nowInputValue } from "@/lib/client";
-import type { BottleRecord, FeedingRecord, Side, StoolRecord } from "@/lib/types";
+import { isOvernight } from "@/lib/sleep";
+import type { BottleRecord, FeedingRecord, Side, SleepRecord, StoolRecord } from "@/lib/types";
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
-import { Baby, Check, Milk, Pencil, Toilet, X } from "lucide-react";
+import { Baby, Check, Milk, Moon, Pencil, Toilet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SelectDropdown } from "@/components/SelectDropdown";
 
@@ -409,6 +410,143 @@ export function ManualFeedingModal({
             />
           </Field>
         </div>
+        <FormError message={error} />
+        <FormActions onClose={onClose} busy={busy} />
+      </form>
+    </Modal>
+  );
+}
+
+/* ---------------- 睡眠：开始计时 / 补录 ---------------- */
+
+const MAX_SLEEP_HOURS = 8;
+
+/** nowInputValue() 往前推 n 分钟的 datetime-local 值 */
+function minutesAgoInput(minutes: number): string {
+  const d = new Date(`${nowInputValue()}:00`);
+  d.setMinutes(d.getMinutes() - minutes);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function StartSleepModal({
+  onClose,
+  onStart,
+  onManual,
+  busy,
+}: {
+  onClose: () => void;
+  onStart: () => void;
+  onManual: () => void;
+  busy: boolean;
+}) {
+  return (
+    <Modal title="记录睡眠" icon={<Moon className="size-5" />} onClose={onClose}>
+      <div className="space-y-3">
+        <p className="text-sm opacity-70">
+          点「开始睡觉」开始计时，宝宝醒来再点「醒来」；也可以直接补录一段已经睡完的。
+        </p>
+        <button className="btn btn-info h-16 w-full text-base" disabled={busy} onClick={onStart}>
+          <Moon className="size-5" />
+          开始睡觉
+        </button>
+        <div className="flex items-center justify-center gap-2">
+          <button className="btn btn-ghost btn-sm" onClick={onManual}>
+            <Pencil className="size-3.5" />
+            补录睡眠（手动填写时间）
+          </button>
+        </div>
+        <div className="text-center">
+          <button className="btn btn-ghost btn-sm" onClick={onClose}>
+            <X className="size-4" />
+            取消
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export function SleepModal({
+  initial,
+  onClose,
+  onSaved,
+}: CommonProps & { initial?: SleepRecord }) {
+  const [startedAt, setStartedAt] = useState(
+    initial ? initial.startedAt.replace(" ", "T") : minutesAgoInput(60),
+  );
+  const [endedAt, setEndedAt] = useState(
+    initial ? initial.endedAt.replace(" ", "T") : nowInputValue(),
+  );
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const body = {
+        startedAt: startedAt.replace("T", " "),
+        endedAt: endedAt.replace("T", " "),
+        note,
+      };
+      await api(initial ? `/api/sleeps/${initial.id}` : "/api/sleeps", {
+        method: initial ? "PATCH" : "POST",
+        body: JSON.stringify(body),
+      });
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const overnight =
+    startedAt.length >= 16 && endedAt.length >= 16 &&
+    isOvernight(startedAt.replace("T", " "), endedAt.replace("T", " "));
+
+  return (
+    <Modal
+      title={initial ? "编辑睡眠记录" : "补录睡眠"}
+      icon={<Moon className="size-5" />}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="入睡时间">
+          <input
+            type="datetime-local"
+            className="input w-full"
+            value={startedAt}
+            onChange={(e) => setStartedAt(e.target.value)}
+            required
+          />
+        </Field>
+        <Field legend="醒来时间" hint={`必须晚于入睡时间，单次不超过 ${MAX_SLEEP_HOURS} 小时`}>
+          <input
+            type="datetime-local"
+            className="input w-full"
+            value={endedAt}
+            onChange={(e) => setEndedAt(e.target.value)}
+            required
+          />
+        </Field>
+        <Field legend="备注（可选）">
+          <textarea
+            className="textarea w-full"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="例如 抱睡"
+          />
+        </Field>
+        {overnight && (
+          <p className="text-xs opacity-60">
+            这段睡眠跨天：时间线显示在入睡当天，统计会按天拆开算。
+          </p>
+        )}
         <FormError message={error} />
         <FormActions onClose={onClose} busy={busy} />
       </form>

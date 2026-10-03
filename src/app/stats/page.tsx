@@ -3,7 +3,7 @@
 import { BarChart } from "@/components/BarChart";
 import type { ChartSeries } from "@/components/BarChart";
 import { api, fmtDurationMin } from "@/lib/client";
-import { ArrowLeft, Baby, Milk, Toilet } from "lucide-react";
+import { ArrowLeft, Baby, Milk, Moon, Toilet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -14,6 +14,7 @@ interface DayStat {
   formulaMl: number;
   breastBottleMl: number;
   stoolCount: number;
+  sleepSeconds: number; // 落在当天的实际睡眠时长（跨天按重叠拆分）
 }
 
 const RANGES = [7, 14, 30];
@@ -44,6 +45,7 @@ export default function StatsPage() {
   const breastTotalSeconds = data ? data.reduce((s, d) => s + d.breastSeconds, 0) : 0;
   const bottleTotalMl = data ? data.reduce((s, d) => s + d.bottleMl, 0) : 0;
   const stoolTotal = data ? data.reduce((s, d) => s + d.stoolCount, 0) : 0;
+  const sleepTotalSeconds = data ? data.reduce((s, d) => s + d.sleepSeconds, 0) : 0;
 
   const labels = data ? data.map((d) => fmtDate(d.date)) : [];
   const breastSeries: ChartSeries[] = data
@@ -57,6 +59,9 @@ export default function StatsPage() {
     : [];
   const stoolSeries: ChartSeries[] = data
     ? [{ name: "便便", colorVar: "var(--color-accent)", values: data.map((d) => d.stoolCount) }]
+    : [];
+  const sleepSeries: ChartSeries[] = data
+    ? [{ name: "睡眠", colorVar: "var(--color-info)", values: data.map((d) => d.sleepSeconds) }]
     : [];
 
   return (
@@ -154,6 +159,24 @@ export default function StatsPage() {
               series={stoolSeries}
               format={(v) => `${v} 次`}
             />
+          </section>
+
+          {/* 睡眠时长（跨天时段按重叠拆分到相邻两天） */}
+          <section className="rounded-box bg-base-200 p-3">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <Moon className="size-4 opacity-80" />
+                睡眠时长
+              </div>
+              <span className="text-xs opacity-60">合计 {fmtDurationMin(sleepTotalSeconds)}</span>
+            </div>
+            <BarChart
+              labels={labels}
+              series={sleepSeries}
+              format={(v) => fmtDurationMin(v)}
+              marginLeft={48}
+            />
+            <p className="mt-1 px-1 text-xs opacity-50">跨天的睡眠按天拆开计入</p>
           </section>
         </div>
       )}

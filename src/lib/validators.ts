@@ -1,4 +1,5 @@
 import { isFutureDt, normalizeDt, parseMl } from "@/lib/time";
+import { MAX_SLEEP_SECONDS, sleepSeconds } from "@/lib/sleep";
 
 /** 母乳记录（手动补录 / 编辑）：开始时间 + 左右侧分钟（支持小数，至少一侧） */
 export async function validateFeeding(body: {
@@ -92,6 +93,28 @@ export async function validateStool(body: {
       note: optText(body.note, 500),
     },
   };
+}
+
+/** 睡眠记录：入睡 + 醒来两个时刻，醒来必须晚于入睡，单次不超过 8 小时 */
+export async function validateSleep(body: {
+  startedAt?: unknown;
+  endedAt?: unknown;
+  note?: unknown;
+}) {
+  const startedAt = normalizeDt(body.startedAt);
+  if (!startedAt) return { error: "入睡时间格式不正确" };
+  if (isFutureDt(startedAt)) return { error: "不能填写未来的时间" };
+
+  const endedAt = normalizeDt(body.endedAt);
+  if (!endedAt) return { error: "醒来时间格式不正确" };
+  if (isFutureDt(endedAt)) return { error: "不能填写未来的时间" };
+  // 同格式的定宽字符串可直接按字典序比较
+  if (endedAt <= startedAt) return { error: "醒来时间必须晚于入睡时间" };
+
+  if (sleepSeconds(startedAt, endedAt) > MAX_SLEEP_SECONDS)
+    return { error: `单次睡眠不能超过 ${MAX_SLEEP_SECONDS / 3600} 小时` };
+
+  return { data: { startedAt, endedAt, note: optText(body.note, 500) } };
 }
 
 export function badId() {

@@ -54,3 +54,24 @@ model ActiveFeeding {
   leftDone             Boolean  @default(false)
   rightDone            Boolean  @default(false)
 }
+
+// 睡眠：一段「入睡 → 醒来」的区间；跨天的时段在统计时按重叠拆分，时间线按 startedAt 归档
+model Sleep {
+  id        Int      @id @default(autoincrement())
+  startedAt String // 入睡时间 "YYYY-MM-DD HH:mm"
+  endedAt   String // 醒来时间 "YYYY-MM-DD HH:mm"
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startedAt])
+  @@index([endedAt])
+}
+
+// 全局唯一的一条进行中睡眠，id 恒为 1
+model ActiveSleep {
+  id          Int      @id @default(1)
+  version     String? // 每次状态变化生成新版本；与 ActiveFeeding 同一套乐观锁
+  startedAt   String // 入睡时间 "YYYY-MM-DD HH:mm"（写进 Sleep 用）
+  startedAtMs DateTime // 入睡的真实时刻（算经过秒数用）
+}

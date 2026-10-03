@@ -39,6 +39,27 @@ export interface StoolRecord {
   note: string | null;
 }
 
+export interface SleepRecord {
+  id: number;
+  startedAt: string;
+  endedAt: string;
+  note: string | null;
+}
+
+export interface ActiveSleepState {
+  exists: boolean;
+  version: string | null; // 操作时提交此版本，拒绝其他设备操作后过期的请求
+  startedAt: string; // "YYYY-MM-DD HH:mm"
+  startedAtMs: string | null; // ISO 时间，客户端据此本地走秒
+  elapsed: number; // 已睡秒数（未计时为 0）
+}
+
+/** 清醒间隔：距最近一次醒来的时长 */
+export interface WakeState {
+  lastWokeAt: string | null; // 最近一次醒来 "YYYY-MM-DD HH:mm"
+  awakeSeconds: number | null; // 距该次醒来的秒数；正在睡或数据过旧时为 null
+}
+
 export interface DayStats {
   breastCount: number;
   breastSeconds: number;
@@ -46,6 +67,7 @@ export interface DayStats {
   feedCount: number;
   bottleMl: number;
   stoolCount: number;
+  sleepSeconds: number; // 落在当天的实际睡眠时长（跨天时段按重叠拆分）
 }
 
 export interface DayData {
@@ -56,7 +78,10 @@ export interface DayData {
   feedings: FeedingRecord[];
   bottles: BottleRecord[];
   stools: StoolRecord[];
+  sleeps: SleepRecord[]; // 按 startedAt 归档（入睡当天），跨天的完整时段只出现在入睡日
   active: ActiveState;
+  activeSleep: ActiveSleepState;
+  wake: WakeState;
 }
 
 export const STOOL_TEXTURES = ["稀", "软", "成形", "干硬", "其他"] as const;
