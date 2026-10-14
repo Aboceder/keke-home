@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Milk,
   Moon,
+  Scale,
   Sparkles,
   Toilet,
   Trash2,
@@ -544,9 +545,14 @@ export function FeedingStation() {
             )}
           </div>
         </div>
-        <Link href="/stats" className="btn btn-ghost btn-square btn-sm" aria-label="统计">
-          <BarChart3 className="size-5" />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link href="/growth" className="btn btn-ghost btn-square btn-sm" aria-label="成长记录">
+            <Scale className="size-5" />
+          </Link>
+          <Link href="/stats" className="btn btn-ghost btn-square btn-sm" aria-label="统计">
+            <BarChart3 className="size-5" />
+          </Link>
+        </div>
       </div>
 
       {/* 日期导航 */}

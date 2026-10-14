@@ -68,6 +68,20 @@ model Sleep {
   @@index([endedAt])
 }
 
+// 身高体重：长周期的成长数据，与当日喂养时间线无关，单独一张表、单独页面
+// 一次测量可能只称了体重（或只量了身高），两个字段都可空，但至少填一项
+model Growth {
+  id        Int      @id @default(autoincrement())
+  date      String // 测量日期 "YYYY-MM-DD"
+  weightJin Float? // 体重（斤，最多 1 位小数）
+  heightCm  Float? // 身高（cm，最多 1 位小数）
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
 // 全局唯一的一条进行中睡眠，id 恒为 1
 model ActiveSleep {
   id          Int      @id @default(1)

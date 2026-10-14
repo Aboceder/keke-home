@@ -46,6 +46,15 @@ export interface SleepRecord {
   note: string | null;
 }
 
+/** 身高体重：一条记录可能只有体重、只有身高，或两者都有 */
+export interface GrowthRecord {
+  id: number;
+  date: string; // "YYYY-MM-DD"
+  weightJin: number | null; // 斤
+  heightCm: number | null; // cm
+  note: string | null;
+}
+
 export interface ActiveSleepState {
   exists: boolean;
   version: string | null; // 操作时提交此版本，拒绝其他设备操作后过期的请求

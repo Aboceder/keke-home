@@ -1,10 +1,11 @@
 "use client";
 
 import { api, nowInputValue } from "@/lib/client";
+import { MAX_HEIGHT_CM, MAX_WEIGHT_JIN } from "@/lib/growth";
 import { isOvernight } from "@/lib/sleep";
-import type { BottleRecord, FeedingRecord, Side, SleepRecord, StoolRecord } from "@/lib/types";
+import type { BottleRecord, FeedingRecord, GrowthRecord, Side, SleepRecord, StoolRecord } from "@/lib/types";
 import { STOOL_COLORS, STOOL_TEXTURES } from "@/lib/types";
-import { Baby, Check, Milk, Moon, Pencil, Toilet, X } from "lucide-react";
+import { Baby, Check, Milk, Moon, Pencil, Scale, Toilet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SelectDropdown } from "@/components/SelectDropdown";
 
@@ -318,6 +319,111 @@ export function StoolModal({
             className="textarea w-full"
             value={note}
             onChange={(e) => setNote(e.target.value)}
+          />
+        </Field>
+        <FormError message={error} />
+        <FormActions onClose={onClose} busy={busy} />
+      </form>
+    </Modal>
+  );
+}
+
+/* ---------------- 身高体重（成长记录） ---------------- */
+
+/** 数值输入框的当前值：已有记录按原值显示，新增时留空 */
+function numInput(v: number | null | undefined): string {
+  return v == null ? "" : String(v);
+}
+
+export function GrowthModal({
+  initial,
+  onClose,
+  onSaved,
+}: CommonProps & { initial?: GrowthRecord }) {
+  // 身高体重只到「天」，不需要时间
+  const [date, setDate] = useState(initial?.date ?? nowInputValue().slice(0, 10));
+  const [weight, setWeight] = useState(numInput(initial?.weightJin));
+  const [height, setHeight] = useState(numInput(initial?.heightCm));
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const body = {
+        date,
+        weightJin: weight === "" ? null : Number(weight),
+        heightCm: height === "" ? null : Number(height),
+        note,
+      };
+      await api(initial ? `/api/growth/${initial.id}` : "/api/growth", {
+        method: initial ? "PATCH" : "POST",
+        body: JSON.stringify(body),
+      });
+      await onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={initial ? "编辑成长记录" : "记录身高体重"}
+      icon={<Scale className="size-5" />}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-2">
+        <Field legend="测量日期">
+          <input
+            type="date"
+            className="input w-full font-digits"
+            value={date}
+            max={nowInputValue().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field legend="体重（斤）" hint="可为空">
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0.1}
+              max={MAX_WEIGHT_JIN}
+              step={0.1}
+              className="input w-full font-digits"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="12.6"
+            />
+          </Field>
+          <Field legend="身高（cm）" hint="可为空">
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0.1}
+              max={MAX_HEIGHT_CM}
+              step={0.1}
+              className="input w-full font-digits"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              placeholder="58.5"
+            />
+          </Field>
+        </div>
+        <p className="text-xs opacity-60">体重和身高至少填一项，可以只称体重。</p>
+        <Field legend="备注（可选）">
+          <textarea
+            className="textarea w-full"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="例如 社区体检"
           />
         </Field>
         <FormError message={error} />

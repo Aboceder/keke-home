@@ -1,4 +1,5 @@
-import { isFutureDt, normalizeDt, parseMl } from "@/lib/time";
+import { MAX_HEIGHT_CM, MAX_WEIGHT_JIN } from "@/lib/growth";
+import { isFutureDate, isFutureDt, normalizeDate, normalizeDt, parseMl } from "@/lib/time";
 import { MAX_SLEEP_SECONDS, sleepSeconds } from "@/lib/sleep";
 
 /** 母乳记录（手动补录 / 编辑）：开始时间 + 左右侧分钟（支持小数，至少一侧） */
@@ -115,6 +116,33 @@ export async function validateSleep(body: {
     return { error: `单次睡眠不能超过 ${MAX_SLEEP_SECONDS / 3600} 小时` };
 
   return { data: { startedAt, endedAt, note: optText(body.note, 500) } };
+}
+
+/** 身高体重记录：日期必填，体重（斤）与身高（cm）各自可空，但至少填一项 */
+export async function validateGrowth(body: {
+  date?: unknown;
+  weightJin?: unknown;
+  heightCm?: unknown;
+  note?: unknown;
+}) {
+  const date = normalizeDate(body.date);
+  if (!date) return { error: "日期格式不正确" };
+  if (isFutureDate(date)) return { error: "不能填写未来的日期" };
+
+  // 上限按儿童量程收窄，挡住「把 5000 克当成斤填」这类单位错误
+  const num = (v: unknown, max: number): number | null | undefined => {
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0 || n > max) return undefined;
+    return Math.round(n * 10) / 10; // 最多 1 位小数
+  };
+  const weightJin = num(body.weightJin, MAX_WEIGHT_JIN);
+  if (weightJin === undefined) return { error: `体重必须为 0 到 ${MAX_WEIGHT_JIN} 之间的斤数` };
+  const heightCm = num(body.heightCm, MAX_HEIGHT_CM);
+  if (heightCm === undefined) return { error: `身高必须为 0 到 ${MAX_HEIGHT_CM} 之间的厘米数` };
+  if (weightJin == null && heightCm == null) return { error: "体重、身高至少填写一项" };
+
+  return { data: { date, weightJin, heightCm, note: optText(body.note, 500) } };
 }
 
 export function badId() {
