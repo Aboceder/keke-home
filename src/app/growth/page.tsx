@@ -14,7 +14,6 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
-  RefreshCw,
   Ruler,
   Scale,
   Sparkles,
@@ -134,7 +133,7 @@ export default function GrowthPage() {
 
   const pull = usePullToRefresh(refresh);
 
-  // 成长数据变化少：进入页面、窗口聚焦/可见或手动刷新时读取，不做高频轮询
+  // 成长数据变化少：进入页面、窗口聚焦/可见或下拉刷新时读取，不做高频轮询
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
@@ -209,14 +208,6 @@ export default function GrowthPage() {
         </Link>
         <h1 className="text-lg font-bold">成长记录</h1>
         <div className="flex items-center gap-1">
-          <button
-            className="btn btn-ghost btn-square btn-sm"
-            aria-label="刷新成长记录"
-            disabled={pull.refreshing}
-            onClick={() => void pull.refresh()}
-          >
-            <RefreshCw className={`size-4 ${pull.refreshing ? "animate-spin" : ""}`} />
-          </button>
           <button className="btn btn-primary btn-sm" onClick={() => setModal("new")}>
             <Plus className="size-4" />
             记录
@@ -328,7 +319,7 @@ export default function GrowthPage() {
                         <div className="flex shrink-0">
                           <div className="tooltip" data-tip="删除">
                             <button
-                              className="btn btn-ghost btn-square btn-xs text-error"
+                              className="btn btn-ghost btn-square btn-xs text-trash"
                               aria-label="删除"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -369,7 +360,7 @@ export default function GrowthPage() {
         >
           <div className="modal-box max-w-sm">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-warning" />
+              <AlertTriangle className="size-5 text-warning-ink" />
               <h3 className="text-lg font-bold">确认删除</h3>
             </div>
             <p className="py-3 text-sm">

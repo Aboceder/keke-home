@@ -2,6 +2,7 @@ import "@fontsource/baloo-2/500.css";
 import "@fontsource/baloo-2/600.css";
 import "@fontsource/baloo-2/700.css";
 import type { Metadata, Viewport } from "next";
+import { DEFAULT_THEME, DARK_THEME, THEME_STORAGE_KEY } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,12 +27,19 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#282a36",
+  themeColor: "#FFFDF9",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh-CN" data-theme="dracula">
+    <html lang="zh-CN" data-theme={DEFAULT_THEME} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("${THEME_STORAGE_KEY}");if(t!=="${DEFAULT_THEME}"&&t!=="${DARK_THEME}")t="${DEFAULT_THEME}";var r=document.documentElement;r.setAttribute("data-theme",t);r.style.colorScheme=t==="${DARK_THEME}"?"dark":"light";var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",t==="${DARK_THEME}"?"#282a36":"#FFFDF9")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="min-h-svh antialiased">{children}</body>
     </html>
   );

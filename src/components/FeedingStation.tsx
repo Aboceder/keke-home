@@ -11,6 +11,7 @@ import {
 import { api, fmtClock, fmtDuration, fmtDurationMin } from "@/lib/client";
 import { CountUp } from "@/components/CountUp";
 import { PullToRefreshIndicator, usePullToRefresh } from "@/components/PullToRefresh";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { isOvernight, sleepSeconds } from "@/lib/sleep";
 import type { ActiveSleepState, ActiveState, DayData, Side, TimerData } from "@/lib/types";
 import {
@@ -22,7 +23,6 @@ import {
   ChevronRight,
   Milk,
   Moon,
-  RefreshCw,
   Scale,
   Sparkles,
   Toilet,
@@ -210,7 +210,7 @@ function Row({
       <div className="flex shrink-0">
         <div className="tooltip" data-tip="删除">
           <button
-            className="btn btn-ghost btn-square btn-xs text-error"
+            className="btn btn-ghost btn-square btn-xs text-trash"
             aria-label="删除"
             onClick={(e) => {
               e.stopPropagation();
@@ -362,7 +362,7 @@ export function FeedingStation() {
     }
   }, [applyTimers, refresh]);
 
-  // 普通记录：进入页面、日期切换、窗口聚焦/可见、手动刷新时读取
+  // 普通记录：进入页面、日期切换、窗口聚焦/可见、下拉刷新时读取
   useEffect(() => {
     currentDate.current = date;
     // 用 setTimeout 触发首拉，避免在 effect 内同步调用会 setState 的异步函数
@@ -607,27 +607,20 @@ export function FeedingStation() {
           <div className="flex items-center gap-2">
             <h1 className="shiny-title text-xl font-bold whitespace-nowrap">可可的喂养台</h1>
             {data.ageDays != null && (
-              <span className="badge badge-soft badge-primary badge-sm whitespace-nowrap font-digits">
+              <span className="badge badge-primary badge-sm whitespace-nowrap font-digits">
                 {data.ageDays}天
               </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            className="btn btn-ghost btn-square btn-sm"
-            aria-label="刷新记录"
-            disabled={pull.refreshing}
-            onClick={() => void pull.refresh()}
-          >
-            <RefreshCw className={`size-4 ${pull.refreshing ? "animate-spin" : ""}`} />
-          </button>
           <Link href="/growth" className="btn btn-ghost btn-square btn-sm" aria-label="成长记录">
             <Scale className="size-5" />
           </Link>
           <Link href="/stats" className="btn btn-ghost btn-square btn-sm" aria-label="统计">
             <BarChart3 className="size-5" />
           </Link>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -863,7 +856,7 @@ export function FeedingStation() {
         <dialog className="modal modal-open">
           <div className="modal-box max-w-sm">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-warning" />
+              <AlertTriangle className="size-5 text-warning-ink" />
               <h3 className="text-lg font-bold">确认删除</h3>
             </div>
             <p className="py-3 text-sm">

@@ -100,7 +100,7 @@ function FormActions({
 
 function FormError({ message }: { message: string | null }) {
   if (!message) return null;
-  return <p className="text-error text-sm">{message}</p>;
+  return <p className="text-danger-ink text-sm">{message}</p>;
 }
 
 /* ---------------- 开始母乳：选择左侧或右侧 ---------------- */

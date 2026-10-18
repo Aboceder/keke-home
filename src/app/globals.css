@@ -1,12 +1,73 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: dracula --default;
+  themes: dracula;
+}
+
+@plugin "daisyui/theme" {
+  name: "sage";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #fffdf9;
+  --color-base-200: #f8faf3;
+  --color-base-300: #edf3e8;
+  --color-base-content: #3c4b40;
+  --color-primary: #6fa985;
+  --color-primary-content: #173623;
+  --color-secondary: #efad9c;
+  --color-secondary-content: #5a2b24;
+  --color-accent: #edcf7f;
+  --color-accent-content: #5a4514;
+  --color-neutral: #b4d4c0;
+  --color-neutral-content: #2e4636;
+  --color-info: #9bcedd;
+  --color-info-content: #234751;
+  --color-success: #9fd3ad;
+  --color-success-content: #244b2e;
+  --color-warning: #edcf7f;
+  --color-warning-content: #5a4514;
+  --color-error: #eba79d;
+  --color-error-content: #5c2923;
+  --danger-ink: #8e4038;
+  --warning-ink: #6f5315;
+
+  --radius-selector: 1rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
 }
 
 /* 圆角微调：除 tag(badge) 外，其余稍微更圆 */
 [data-theme="dracula"] {
   --radius-field: 0.75rem; /* 按钮、输入框 */
   --radius-box: 1.25rem; /* 卡片、弹窗、列表 */
+  --danger-ink: #ff9b9b;
+  --warning-ink: #f1fa8c;
+}
+
+/* 浅色主题用纯色标题，避免金属渐变在白底上发灰 */
+[data-theme="sage"] .shiny-title {
+  color: var(--color-primary-content);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  animation: none;
+}
+
+.text-danger-ink {
+  color: var(--danger-ink);
+}
+
+.text-trash {
+  color: #ef4444;
+}
+
+.text-warning-ink {
+  color: var(--warning-ink);
 }
 
 /* 计时与统计数字用圆润几何字体；中文正文走系统字体 */
