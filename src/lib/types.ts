@@ -88,6 +88,10 @@ export interface DayData {
   bottles: BottleRecord[];
   stools: StoolRecord[];
   sleeps: SleepRecord[]; // 按 startedAt 归档（入睡当天），跨天的完整时段只出现在入睡日
+}
+
+/** 轻量计时状态：单独轮询，避免为了同步计时反复拉整天的记录 */
+export interface TimerData {
   active: ActiveState;
   activeSleep: ActiveSleepState;
   wake: WakeState;

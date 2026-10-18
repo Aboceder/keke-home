@@ -3,6 +3,7 @@
 import { GrowthModal } from "@/components/RecordModals";
 import { LineChart } from "@/components/LineChart";
 import type { LinePoint } from "@/components/LineChart";
+import { PullToRefreshIndicator, usePullToRefresh } from "@/components/PullToRefresh";
 import { api } from "@/lib/client";
 import { ageTextAt, fmtDelta, fmtNum } from "@/lib/growth";
 import type { GrowthRecord } from "@/lib/types";
@@ -13,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
+  RefreshCw,
   Ruler,
   Scale,
   Sparkles,
@@ -130,20 +132,19 @@ export default function GrowthPage() {
     }
   }, []);
 
-  // 与首页一致：可见页每 2 秒同步一次；慢请求未完成前不叠加
+  const pull = usePullToRefresh(refresh);
+
+  // 成长数据变化少：进入页面、窗口聚焦/可见或手动刷新时读取，不做高频轮询
   useEffect(() => {
-    let inFlight = false;
-    const tick = async () => {
-      if (document.visibilityState !== "visible" || inFlight) return;
-      inFlight = true;
-      try {
-        await refresh();
-      } finally {
-        inFlight = false;
-      }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
     };
-    const timer = setInterval(tick, 2000);
-    return () => clearInterval(timer);
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -199,6 +200,7 @@ export default function GrowthPage() {
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-10 pt-4">
+      <PullToRefreshIndicator distance={pull.distance} refreshing={pull.refreshing} />
       {/* 顶栏 */}
       <div className="mb-4 flex items-center justify-between">
         <Link href="/" className="btn btn-ghost btn-sm">
@@ -206,10 +208,20 @@ export default function GrowthPage() {
           返回
         </Link>
         <h1 className="text-lg font-bold">成长记录</h1>
-        <button className="btn btn-primary btn-sm" onClick={() => setModal("new")}>
-          <Plus className="size-4" />
-          记录
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            className="btn btn-ghost btn-square btn-sm"
+            aria-label="刷新成长记录"
+            disabled={pull.refreshing}
+            onClick={() => void pull.refresh()}
+          >
+            <RefreshCw className={`size-4 ${pull.refreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal("new")}>
+            <Plus className="size-4" />
+            记录
+          </button>
+        </div>
       </div>
 
       {error && (

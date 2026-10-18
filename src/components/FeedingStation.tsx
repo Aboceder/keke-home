@@ -10,8 +10,9 @@ import {
 } from "@/components/RecordModals";
 import { api, fmtClock, fmtDuration, fmtDurationMin } from "@/lib/client";
 import { CountUp } from "@/components/CountUp";
+import { PullToRefreshIndicator, usePullToRefresh } from "@/components/PullToRefresh";
 import { isOvernight, sleepSeconds } from "@/lib/sleep";
-import type { ActiveSleepState, ActiveState, DayData, Side } from "@/lib/types";
+import type { ActiveSleepState, ActiveState, DayData, Side, TimerData } from "@/lib/types";
 import {
   AlertCircle,
   AlertTriangle,
@@ -21,6 +22,7 @@ import {
   ChevronRight,
   Milk,
   Moon,
+  RefreshCw,
   Scale,
   Sparkles,
   Toilet,
@@ -235,6 +237,9 @@ export function FeedingStation() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const currentDate = useRef<string | null>(null);
   const pendingRequest = useRef<AbortController | null>(null);
+  const timerRequest = useRef<AbortController | null>(null);
+  const lastTimerKey = useRef<string | null>(null);
+  const [timers, setTimers] = useState<TimerData | null>(null);
 
   const [modal, setModal] = useState<
     | { type: "startFeeding" }
@@ -269,8 +274,8 @@ export function FeedingStation() {
   const [anchor, setAnchor] = useState<{ startedAt: string; elapsed: number; atMs: number } | null>(null);
   // 睡眠只有「开始」一个时刻，用 startedAtMs 判断是否是新的一段计时
   const [sleepAnchor, setSleepAnchor] = useState<{ startedAtMs: string; elapsed: number; atMs: number } | null>(null);
-  const applyData = useCallback((d: DayData) => {
-    const a = d.active;
+  const applyTimers = useCallback((t: TimerData) => {
+    const a = t.active;
     const startedAt = a.activeSideStartedAt;
     if (a.exists && a.activeSide && startedAt) {
       setAnchor((prev) =>
@@ -281,7 +286,7 @@ export function FeedingStation() {
     } else {
       setAnchor(null);
     }
-    const s = d.activeSleep;
+    const s = t.activeSleep;
     if (s.exists && s.startedAtMs) {
       setSleepAnchor((prev) =>
         prev && prev.startedAtMs === s.startedAtMs
@@ -291,6 +296,10 @@ export function FeedingStation() {
     } else {
       setSleepAnchor(null);
     }
+    setTimers(t);
+  }, []);
+
+  const applyData = useCallback((d: DayData) => {
     setData(d);
   }, []);
 
@@ -315,31 +324,89 @@ export function FeedingStation() {
     }
   }, [date, applyData]);
 
-  // 自动同步：轮询（可见页每 2 秒）+ 计时本地走秒
+  const refreshTimers = useCallback(async (refreshRecordsOnChange = true) => {
+    timerRequest.current?.abort();
+    const controller = new AbortController();
+    timerRequest.current = controller;
+    try {
+      const next = await api<TimerData>("/api/timers", { signal: controller.signal });
+      if (timerRequest.current !== controller || controller.signal.aborted) return;
+      // elapsed 每秒都在变；只比较计时状态本身，避免计时中每 2 秒重拉整天数据
+      const key = JSON.stringify({
+        active: {
+          exists: next.active.exists,
+          version: next.active.version,
+          activeSide: next.active.activeSide,
+          activeSideStartedAt: next.active.activeSideStartedAt,
+          leftSeconds: next.active.leftSeconds,
+          rightSeconds: next.active.rightSeconds,
+          leftDone: next.active.leftDone,
+          rightDone: next.active.rightDone,
+        },
+        activeSleep: {
+          exists: next.activeSleep.exists,
+          version: next.activeSleep.version,
+          startedAt: next.activeSleep.startedAt,
+          startedAtMs: next.activeSleep.startedAtMs,
+        },
+      });
+      const changed = lastTimerKey.current !== null && lastTimerKey.current !== key;
+      lastTimerKey.current = key;
+      applyTimers(next);
+      // 计时结束会落一条记录：状态变化后补拉当天数据
+      if (changed && refreshRecordsOnChange) await refresh();
+    } catch {
+      // 计时轮询失败不打断页面；下一次 tick 自动重试
+    } finally {
+      if (timerRequest.current === controller) timerRequest.current = null;
+    }
+  }, [applyTimers, refresh]);
+
+  // 普通记录：进入页面、日期切换、窗口聚焦/可见、手动刷新时读取
   useEffect(() => {
     currentDate.current = date;
-    const tick = () => {
-      // 慢请求尚未结束时跳过轮询；保存后的主动刷新则会取消旧请求。
-      if (document.visibilityState !== "visible" || pendingRequest.current) return;
-      void refresh();
+    // 用 setTimeout 触发首拉，避免在 effect 内同步调用会 setState 的异步函数
+    const first = setTimeout(() => void refresh(), 0);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
     };
-    tick();
-    const t = setInterval(tick, 2000);
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       currentDate.current = null;
       pendingRequest.current?.abort();
       pendingRequest.current = null;
-      clearInterval(t);
+      clearTimeout(first);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [date, refresh]);
+
+  // 只轮询轻量计时状态；可见页每 2 秒，本地计时数字仍按秒走
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible" || timerRequest.current) return;
+      void refreshTimers();
+    };
+    tick();
+    const t = setInterval(tick, 2000);
+    return () => {
+      timerRequest.current?.abort();
+      timerRequest.current = null;
+      clearInterval(t);
+    };
+  }, [refreshTimers]);
 
   useEffect(() => {
     const t = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const active = data?.active;
-  const activeSleep = data?.activeSleep;
+  const active = timers?.active;
+  const activeSleep = timers?.activeSleep;
+  const pull = usePullToRefresh(async () => {
+    await Promise.all([refresh(), refreshTimers(false)]);
+  });
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -349,7 +416,7 @@ export function FeedingStation() {
       showError(err instanceof Error ? err.message : "操作失败");
     } finally {
       // 冲突操作失败后也重新读取状态，让按钮跟随另一台设备的操作结果。
-      await refresh();
+      await Promise.all([refresh(), refreshTimers(false)]);
       setBusy(false);
     }
   }
@@ -381,7 +448,7 @@ export function FeedingStation() {
     } catch (err) {
       showError(err instanceof Error ? err.message : "操作失败");
     } finally {
-      await refresh();
+      await Promise.all([refresh(), refreshTimers(false)]);
       setBusy(false);
     }
   }
@@ -526,6 +593,7 @@ export function FeedingStation() {
 
   return (
     <main className={`mx-auto max-w-xl px-4 pt-4 ${bothBars ? "pb-56" : "pb-40"}`}>
+      <PullToRefreshIndicator distance={pull.distance} refreshing={pull.refreshing} />
       {loadErrorNotice && <div className="mb-4">{loadErrorNotice}</div>}
       {/* 顶栏：logo + 标题 + 统计入口 */}
       <div className="mb-3 flex items-center justify-between">
@@ -546,6 +614,14 @@ export function FeedingStation() {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            className="btn btn-ghost btn-square btn-sm"
+            aria-label="刷新记录"
+            disabled={pull.refreshing}
+            onClick={() => void pull.refresh()}
+          >
+            <RefreshCw className={`size-4 ${pull.refreshing ? "animate-spin" : ""}`} />
+          </button>
           <Link href="/growth" className="btn btn-ghost btn-square btn-sm" aria-label="成长记录">
             <Scale className="size-5" />
           </Link>

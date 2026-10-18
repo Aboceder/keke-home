@@ -1,6 +1,4 @@
 import { ageDaysAt } from "@/lib/age";
-import { activeState } from "@/lib/active-feeding";
-import { activeSleepState, wakeState } from "@/lib/active-sleep";
 import { prisma } from "@/lib/prisma";
 import { overlapSeconds } from "@/lib/sleep";
 import { normalizeDate, nowDate } from "@/lib/time";
@@ -14,8 +12,7 @@ export async function GET(request: NextRequest) {
   const date = param === null ? nowDate() : normalizeDate(param);
   if (!date) return Response.json({ error: "日期格式不正确" }, { status: 400 });
 
-  const [feedings, bottles, stools, sleepRows, activeRow, activeSleepRow, lastSleep] =
-    await Promise.all([
+  const [feedings, bottles, stools, sleepRows] = await Promise.all([
       prisma.feeding.findMany({
         where: { startedAt: { startsWith: date } },
         orderBy: { startedAt: "desc" },
@@ -38,9 +35,6 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startedAt: "desc" },
       }),
-      prisma.activeFeeding.findUnique({ where: { id: 1 } }),
-      prisma.activeSleep.findUnique({ where: { id: 1 } }),
-      prisma.sleep.findFirst({ orderBy: { endedAt: "desc" }, select: { endedAt: true } }),
     ]);
 
   const bottleMl = bottles.reduce((s, b) => s + b.amountMl, 0);
@@ -67,9 +61,6 @@ export async function GET(request: NextRequest) {
     stools,
     // 时间线按入睡时间归档，跨天的完整时段只出现在入睡日
     sleeps: sleepRows.filter((x) => x.startedAt.startsWith(date)),
-    active: activeState(activeRow),
-    activeSleep: activeSleepState(activeSleepRow),
-    wake: wakeState(activeSleepRow, lastSleep),
   };
 
   return Response.json(data);
