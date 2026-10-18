@@ -605,10 +605,10 @@ export function FeedingStation() {
             className="size-10 rounded-xl shadow-sm"
           />
           <div className="flex items-center gap-2">
-            <h1 className="shiny-title text-xl font-bold">可可的喂养台</h1>
+            <h1 className="shiny-title text-xl font-bold whitespace-nowrap">可可的喂养台</h1>
             {data.ageDays != null && (
               <span className="badge badge-soft badge-primary badge-sm whitespace-nowrap font-digits">
-                已经 {data.ageDays} 天啦
+                {data.ageDays}天
               </span>
             )}
           </div>
