@@ -6,9 +6,20 @@ import type { LinePoint } from "@/components/LineChart";
 import { api } from "@/lib/client";
 import { ageTextAt, fmtDelta, fmtNum } from "@/lib/growth";
 import type { GrowthRecord } from "@/lib/types";
-import { AlertCircle, AlertTriangle, ArrowLeft, Plus, Ruler, Scale, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Ruler,
+  Scale,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface GrowthData {
   birthDate: string | null;
@@ -63,6 +74,7 @@ function ChartCard({
   colorVar,
   points,
   latest,
+  domain,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -70,6 +82,7 @@ function ChartCard({
   colorVar: string;
   points: LinePoint[];
   latest: { value: number; delta: number | null } | null;
+  domain?: { start: string; end: string };
 }) {
   return (
     <section className="rounded-box bg-base-200 p-3">
@@ -90,7 +103,7 @@ function ChartCard({
         )}
       </div>
       {points.length > 0 ? (
-        <LineChart points={points} unit={unit} colorVar={colorVar} />
+        <LineChart points={points} unit={unit} colorVar={colorVar} domain={domain} />
       ) : (
         <p className="py-10 text-center text-sm opacity-60">还没有{title}记录</p>
       )}
@@ -105,6 +118,8 @@ export default function GrowthPage() {
   const [confirmDelete, setConfirmDelete] = useState<GrowthRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [listOpen, setListOpen] = useState(false);
+  const confirmRef = useRef<HTMLDialogElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -114,6 +129,32 @@ export default function GrowthPage() {
       setError(e instanceof Error ? e.message : "加载失败");
     }
   }, []);
+
+  // 与首页一致：可见页每 2 秒同步一次；慢请求未完成前不叠加
+  useEffect(() => {
+    let inFlight = false;
+    const tick = async () => {
+      if (document.visibilityState !== "visible" || inFlight) return;
+      inFlight = true;
+      try {
+        await refresh();
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = setInterval(tick, 2000);
+    return () => clearInterval(timer);
+  }, [refresh]);
+
+  useEffect(() => {
+    const dialog = confirmRef.current;
+    if (!dialog) return;
+    if (confirmDelete) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [confirmDelete]);
 
   useEffect(() => {
     let alive = true;
@@ -152,6 +193,9 @@ export default function GrowthPage() {
   const editing = modal && modal !== "new" ? rows.find((r) => r.id === modal.id) : undefined;
   const weightPoints = pointsFor(rows, "weightJin", "斤");
   const heightPoints = pointsFor(rows, "heightCm", "cm");
+  // 两张图共用完整记录日期范围，缺测日期也会保留在横轴上
+  const domain =
+    rows.length > 0 ? { start: rows.at(-1)!.date, end: rows[0].date } : undefined;
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-10 pt-4">
@@ -194,6 +238,7 @@ export default function GrowthPage() {
             colorVar="var(--color-secondary)"
             points={weightPoints}
             latest={latestWith(rows, "weightJin")}
+            domain={domain}
           />
           <ChartCard
             title="身高"
@@ -202,71 +247,92 @@ export default function GrowthPage() {
             colorVar="var(--color-info)"
             points={heightPoints}
             latest={latestWith(rows, "heightCm")}
+            domain={domain}
           />
 
-          {/* 记录列表：日期倒序，行内标出相对上一次的增量与月龄 */}
+          {/* 记录列表：默认收起，避免长历史压住页面；展开后按日期倒序 */}
           {rows.length === 0 ? (
             <div className="py-12 text-center">
               <Sparkles className="mx-auto mb-2 size-6 opacity-40" />
               <p className="text-sm opacity-60">还没有记录，点右上角「记录」开始吧。</p>
             </div>
           ) : (
-            <ul className="list bg-base-100 rounded-2xl shadow-sm">
-              {rows.map((r, i) => {
-                const weightDelta = deltaAt(rows, i, "weightJin");
-                const heightDelta = deltaAt(rows, i, "heightCm");
-                const age = data.birthDate ? ageTextAt(data.birthDate, r.date) : null;
-                return (
-                  <li
-                    key={r.id}
-                    className="list-row items-center cursor-pointer"
-                    onClick={() => setModal({ id: r.id })}
-                  >
-                    <div className="flex shrink-0 flex-col items-start gap-0.5">
-                      <span className="font-digits text-sm font-semibold">{fmtDate(r.date)}</span>
-                      {age && <span className="text-xs whitespace-nowrap opacity-50">{age}</span>}
-                    </div>
-                    <div className="list-col-grow min-w-0">
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                        {r.weightJin != null && (
-                          <span className="font-digits text-sm">
-                            {fmtNum(r.weightJin)}
-                            <span className="text-xs opacity-60"> 斤</span>
-                            {weightDelta != null && (
-                              <span className="ml-1 text-xs opacity-60">{fmtDelta(weightDelta)}</span>
+            <section className="rounded-box overflow-hidden bg-base-100 shadow-sm">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+                aria-expanded={listOpen}
+                aria-controls="growth-record-list"
+                onClick={() => setListOpen((open) => !open)}
+              >
+                <span className="text-sm font-semibold">
+                  全部记录 <span className="font-digits opacity-60">{rows.length}</span>
+                </span>
+                {listOpen ? (
+                  <ChevronUp className="size-4 opacity-60" />
+                ) : (
+                  <ChevronDown className="size-4 opacity-60" />
+                )}
+              </button>
+              {listOpen && (
+                <ul id="growth-record-list" className="list">
+                  {rows.map((r, i) => {
+                    const weightDelta = deltaAt(rows, i, "weightJin");
+                    const heightDelta = deltaAt(rows, i, "heightCm");
+                    const age = data.birthDate ? ageTextAt(data.birthDate, r.date) : null;
+                    return (
+                      <li
+                        key={r.id}
+                        className="list-row items-center cursor-pointer"
+                        onClick={() => setModal({ id: r.id })}
+                      >
+                        <div className="flex shrink-0 flex-col items-start gap-0.5">
+                          <span className="font-digits text-sm font-semibold">{fmtDate(r.date)}</span>
+                          {age && <span className="text-xs whitespace-nowrap opacity-50">{age}</span>}
+                        </div>
+                        <div className="list-col-grow min-w-0">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            {r.weightJin != null && (
+                              <span className="font-digits text-sm">
+                                {fmtNum(r.weightJin)}
+                                <span className="text-xs opacity-60"> 斤</span>
+                                {weightDelta != null && (
+                                  <span className="ml-1 text-xs opacity-60">{fmtDelta(weightDelta)}</span>
+                                )}
+                              </span>
                             )}
-                          </span>
-                        )}
-                        {r.heightCm != null && (
-                          <span className="font-digits text-sm">
-                            {fmtNum(r.heightCm)}
-                            <span className="text-xs opacity-60"> cm</span>
-                            {heightDelta != null && (
-                              <span className="ml-1 text-xs opacity-60">{fmtDelta(heightDelta)}</span>
+                            {r.heightCm != null && (
+                              <span className="font-digits text-sm">
+                                {fmtNum(r.heightCm)}
+                                <span className="text-xs opacity-60"> cm</span>
+                                {heightDelta != null && (
+                                  <span className="ml-1 text-xs opacity-60">{fmtDelta(heightDelta)}</span>
+                                )}
+                              </span>
                             )}
-                          </span>
-                        )}
-                      </div>
-                      {r.note && <p className="truncate text-xs opacity-60">{r.note}</p>}
-                    </div>
-                    <div className="flex shrink-0">
-                      <div className="tooltip" data-tip="删除">
-                        <button
-                          className="btn btn-ghost btn-square btn-xs text-error"
-                          aria-label="删除"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete(r);
-                          }}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                          </div>
+                          {r.note && <p className="truncate text-xs opacity-60">{r.note}</p>}
+                        </div>
+                        <div className="flex shrink-0">
+                          <div className="tooltip" data-tip="删除">
+                            <button
+                              className="btn btn-ghost btn-square btn-xs text-error"
+                              aria-label="删除"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDelete(r);
+                              }}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
           )}
         </div>
       )}
@@ -284,7 +350,11 @@ export default function GrowthPage() {
       {editing && <GrowthModal initial={editing} onClose={() => setModal(null)} onSaved={refresh} />}
 
       {confirmDelete && (
-        <dialog className="modal modal-open">
+        <dialog
+          ref={confirmRef}
+          className="modal"
+          onClose={() => setConfirmDelete(null)}
+        >
           <div className="modal-box max-w-sm">
             <div className="flex items-center gap-2">
               <AlertTriangle className="size-5 text-warning" />

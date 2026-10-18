@@ -21,6 +21,17 @@ interface ScaledPoint {
   tip: string;
 }
 
+interface LineChartProps {
+  points: LinePoint[];
+  unit: string;
+  colorVar: string;
+  decimals?: number;
+  marginLeft?: number;
+  height?: number;
+  /** 横轴范围；不传时按 points 的首末日期。两张图要上下对照时传同一个范围。 */
+  domain?: { start: string; end: string };
+}
+
 /** 折线层：数据变化时（key 变化）重新描线 */
 function Lines({
   points,
@@ -34,6 +45,7 @@ function Lines({
   uid: string;
 }) {
   const [grow, setGrow] = useState(false);
+  const [active, setActive] = useState<number | null>(null);
   useEffect(() => {
     // 尊重系统「减弱动态效果」：直接显示终态，不描线
     // 用 setTimeout 而不是同步 setState，避免级联渲染（与 CountUp 同一处理）
@@ -49,6 +61,16 @@ function Lines({
   const first = points[0];
   const last = points.at(-1)!;
   const single = points.length === 1;
+  const activePoint = active == null ? null : points[active];
+  const tipWidth = activePoint ? Math.min(150, Math.max(42, activePoint.tip.length * 7 + 10)) : 0;
+  const tipX = activePoint
+    ? Math.max(4, Math.min(320 - tipWidth - 4, activePoint.px - tipWidth / 2))
+    : 0;
+  const tipY = activePoint
+    ? activePoint.py > 26
+      ? activePoint.py - 20
+      : activePoint.py + 12
+    : 0;
 
   return (
     <g>
@@ -95,11 +117,40 @@ function Lines({
             }}
           />
           {/* 透明大圆做悬停/长按热区 */}
-          <circle cx={p.px} cy={p.py} r={9} fill="transparent">
+          <circle
+            cx={p.px}
+            cy={p.py}
+            r={9}
+            fill="transparent"
+            className="cursor-pointer"
+            onClick={() => setActive(i)}
+          >
             <title>{p.tip}</title>
           </circle>
         </g>
       ))}
+      {activePoint && (
+        <g pointerEvents="none">
+          <rect
+            x={tipX}
+            y={tipY}
+            width={tipWidth}
+            height={14}
+            rx={4}
+            fill="var(--color-base-100)"
+            opacity={0.95}
+          />
+          <text
+            x={tipX + tipWidth / 2}
+            y={tipY + 10}
+            textAnchor="middle"
+            className="fill-current"
+            fontSize={8}
+          >
+            {activePoint.tip}
+          </text>
+        </g>
+      )}
     </g>
   );
 }
@@ -116,16 +167,18 @@ export function LineChart({
   colorVar,
   decimals = 1,
   marginLeft = 34,
-  height = 140,
-}: {
-  points: LinePoint[];
-  unit: string;
-  colorVar: string;
-  decimals?: number;
-  marginLeft?: number;
-  height?: number;
-}) {
+  height = 180,
+  domain,
+}: LineChartProps) {
   const uid = useId();
+  if (points.length === 0) {
+    return (
+      <p className="py-10 text-center text-sm opacity-60" role="status">
+        暂无数据
+      </p>
+    );
+  }
+
   const W = 320;
   const H = height;
   const marginBottom = 20;
@@ -152,11 +205,12 @@ export function LineChart({
   min = Math.max(0, min); // 身高体重都不是负数，留白后下界跑到 0 以下没意义
 
   const idx = points.map((p) => dayIndex(p.date));
-  const minIdx = Math.min(...idx);
-  const spanDays = Math.max(...idx) - minIdx;
+  const firstIdx = domain ? dayIndex(domain.start) : Math.min(...idx);
+  const lastIdx = domain ? dayIndex(domain.end) : Math.max(...idx);
+  const spanDays = lastIdx - firstIdx;
   // 只有一天的数据时给固定跨度，点落在正中间
   const xAt = (i: number) =>
-    spanDays === 0 ? marginLeft + plotW / 2 : marginLeft + ((idx[i] - minIdx) / spanDays) * plotW;
+    spanDays === 0 ? marginLeft + plotW / 2 : marginLeft + ((idx[i] - firstIdx) / spanDays) * plotW;
   const yAt = (v: number) => baseline - ((v - min) / (max - min)) * plotH;
 
   const scaled: ScaledPoint[] = points.map((p, i) => ({
@@ -165,7 +219,18 @@ export function LineChart({
     tip: p.tip,
   }));
 
-  const dateLabel = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+  const startDate = domain?.start ?? points[0].date;
+  const endDate = domain?.end ?? points.at(-1)!.date;
+  // 跨年时补年份，避免「12/20 — 1/5」看不出是哪一年
+  const crossesYear = startDate.slice(0, 4) !== endDate.slice(0, 4);
+  const dateLabel = (d: string) =>
+    crossesYear
+      ? `${d.slice(0, 4)}/${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
+      : `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+  const midDate =
+    spanDays > 0
+      ? new Date(Math.round((firstIdx + lastIdx) / 2) * 86400000).toISOString().slice(0, 10)
+      : null;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`${unit}折线图`}>
@@ -197,14 +262,17 @@ export function LineChart({
         uid={uid}
       />
 
-      {/* 横轴只标首末测量日；跨度内缺测的日子没有点，不用逐日标注 */}
+      {/* 横轴标最早、中间、最近三个日期；跨年时带年份 */}
       {spanDays > 0 && (
         <>
           <text x={marginLeft} y={H - 6} textAnchor="start" className="fill-current" fontSize={8} opacity={0.6}>
-            {dateLabel(points[0].date)}
+            {dateLabel(startDate)}
+          </text>
+          <text x={marginLeft + plotW / 2} y={H - 6} textAnchor="middle" className="fill-current" fontSize={8} opacity={0.6}>
+            {dateLabel(midDate!)}
           </text>
           <text x={W} y={H - 6} textAnchor="end" className="fill-current" fontSize={8} opacity={0.6}>
-            {dateLabel(points.at(-1)!.date)}
+            {dateLabel(endDate)}
           </text>
         </>
       )}

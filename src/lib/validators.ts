@@ -137,9 +137,11 @@ export async function validateGrowth(body: {
     return Math.round(n * 10) / 10; // 最多 1 位小数
   };
   const weightJin = num(body.weightJin, MAX_WEIGHT_JIN);
-  if (weightJin === undefined) return { error: `体重必须为 0 到 ${MAX_WEIGHT_JIN} 之间的斤数` };
+  if (weightJin === undefined)
+    return { error: `体重必须为大于 0 且不超过 ${MAX_WEIGHT_JIN} 的斤数` };
   const heightCm = num(body.heightCm, MAX_HEIGHT_CM);
-  if (heightCm === undefined) return { error: `身高必须为 0 到 ${MAX_HEIGHT_CM} 之间的厘米数` };
+  if (heightCm === undefined)
+    return { error: `身高必须为大于 0 且不超过 ${MAX_HEIGHT_CM} 的厘米数` };
   if (weightJin == null && heightCm == null) return { error: "体重、身高至少填写一项" };
 
   return { data: { date, weightJin, heightCm, note: optText(body.note, 500) } };
