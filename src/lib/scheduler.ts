@@ -1,4 +1,4 @@
-// 定时任务：喂养间隔提醒、计时遗忘提醒、每日日报、每周周报
+// 定时任务：喂养间隔提醒、计时遗忘提醒、每日日报、每周周报、每周称重提醒
 // 由 instrumentation.ts 在服务启动时调用一次（globalThis 标记防止 dev 热重载重复注册）
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
@@ -149,7 +149,14 @@ export function startScheduler(): void {
     sendWeeklyReport().catch((err) => console.error("[scheduler] 周报失败:", err));
   }, { timezone: TZ });
 
+  // 每周称重提醒 周日 11:00（北京时间）
+  cron.schedule("0 11 * * 0", () => {
+    barkPush("称重提醒", "今天是周日，记得给可可测体重并记录～").catch((err) =>
+      console.error("[scheduler] 称重提醒失败:", err),
+    );
+  }, { timezone: TZ });
+
   console.log(
-    "[scheduler] 定时任务已启动：间隔/计时遗忘/睡眠遗忘/清醒提醒(5min)、日报(00:01)、周报(周一09:00)",
+    "[scheduler] 定时任务已启动：间隔/计时遗忘/睡眠遗忘/清醒提醒(5min)、日报(00:01)、周报(周一09:00)、称重提醒(周日11:00)",
   );
 }
